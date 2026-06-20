@@ -24,6 +24,7 @@ from penalty_fusion_engine import PenaltyFusionEngine
 from scouting_engine import (ScoutingEngine, ROLE_NAMES, ROLE_WEIGHTS,
                              generate_improvement_plan)
 from backtest import run_backtest
+import development_sim
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 STATS_PATH = os.path.join(BASE, "player_penalty_stats.csv")
@@ -207,6 +208,21 @@ def analyze_plans(commentary, role="ST", roster=None, top_n=12, engine=None, wea
     return {"role": role, "role_name": ROLE_NAMES.get(role, role), "plans": plans}
 
 
+def analyze_development(commentary, roster=None, engine=None):
+    engine = engine or scout_engine
+    players = engine.detect_players(commentary, roster=roster or None)
+    devs = []
+    for name, sents in players.items():
+        prof = engine.profile_player(name, sents, target_role=None)  # best role
+        dev = development_sim.player_development(
+            name, prof.attributes, sents, prof.role_rating, prof.verdict, prof.potential_flag)
+        dev["best_role"] = prof.best_role
+        dev["role_name"] = ROLE_NAMES.get(prof.best_role, prof.best_role)
+        devs.append(dev)
+    devs.sort(key=lambda d: (-len(d["mistakes"]), -d["ceiling"]["gap"]))
+    return {"players": devs, "team_strategy": development_sim.team_strategy(devs)}
+
+
 # ───────────────────────── routes ─────────────────────────
 @app.route("/")
 def index():
@@ -294,6 +310,15 @@ def plan():
     return jsonify(analyze_plans(commentary, role=role, roster=roster,
                                  engine=build_scout_engine(),
                                  weak_threshold=_f("weak_threshold", 58)))
+
+
+@app.route("/develop", methods=["POST"])
+def develop():
+    commentary = read_commentary()
+    if len(commentary) < 20:
+        return jsonify({"error": "Please provide commentary or a transcript."}), 400
+    roster = parse_roster(request.form.get("roster") or "")
+    return jsonify(analyze_development(commentary, roster=roster, engine=build_scout_engine()))
 
 
 @app.route("/validation")
@@ -417,6 +442,31 @@ INDEX_HTML = r"""
   .seccap { color:var(--gold); font-size:13px; text-transform:uppercase; letter-spacing:.5px; margin-top:16px; }
   .savebar { margin-top:18px; display:flex; gap:10px; align-items:center; }
   .applied { color:var(--green); font-size:13px; }
+
+  /* development lab */
+  .devcard { background:#0e1830; border:1px solid var(--line); border-radius:12px; padding:16px; margin-top:14px; }
+  .devhead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .devhead h3 { margin:0; font-size:16px; }
+  .ceil { font-size:13px; color:var(--mut); }
+  .band { font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .band.HIGH { background:rgba(40,209,124,.18); color:var(--green); }
+  .band.ROOM { background:rgba(55,162,255,.18); color:var(--accent); }
+  .band.NEAR { background:rgba(159,176,208,.15); color:var(--mut); }
+  .growbar { height:9px; background:#0c1424; border-radius:6px; overflow:hidden; margin-top:6px; position:relative; }
+  .growbar .cur { position:absolute; left:0; top:0; bottom:0; background:var(--accent); }
+  .growbar .cap { position:absolute; top:0; bottom:0; width:3px; background:var(--green); }
+  .mistake { display:grid; grid-template-columns:300px 1fr; gap:14px; margin-top:14px; border-top:1px solid var(--line); padding-top:14px; }
+  @media (max-width:780px){ .mistake{ grid-template-columns:1fr; } }
+  .simwrap { }
+  .simpitch { width:100%; border-radius:8px; display:block; background:#1c7d40; }
+  .simbtns { display:flex; gap:8px; margin-top:8px; }
+  .simbtn { font-size:12px; padding:6px 12px; border-radius:8px; border:1px solid var(--line); cursor:pointer; background:#0c1424; color:var(--txt); }
+  .simbtn.bad:hover { border-color:var(--red); color:var(--red); }
+  .simbtn.good:hover { border-color:var(--green); color:var(--green); }
+  .simlabel { font-size:12px; color:var(--mut); margin-top:6px; min-height:16px; }
+  .mtext b.w { color:var(--red); } .mtext b.g { color:var(--green); }
+  .mtext .row { margin:3px 0; font-size:13.5px; }
+  .teambox { background:rgba(55,162,255,.08); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:14px; }
 </style>
 </head>
 <body>
@@ -517,6 +567,7 @@ Optional Video signal: OpenCV motion analysis ─▶ composure score</div>
     <div class="tab active" id="tab-pen" onclick="showTab('pen')">Penalty Selector</div>
     <div class="tab" id="tab-scout" onclick="showTab('scout')">Scouting</div>
     <div class="tab" id="tab-plan" onclick="showTab('plan')">Improvement Plan</div>
+    <div class="tab" id="tab-dev" onclick="showTab('dev')">Development Lab</div>
     <div class="tab" id="tab-val" onclick="showTab('val')">Validation</div>
   </div>
 
@@ -594,6 +645,28 @@ Optional Video signal: OpenCV motion analysis ─▶ composure score</div>
     <div id="d_out" style="margin-top:18px;"></div>
   </div>
 
+  <!-- DEVELOPMENT LAB -->
+  <div id="panel-dev" class="hidden">
+    <div class="grid">
+      <div class="card">
+        <label>Commentary / transcript</label>
+        <textarea id="g_commentary" placeholder="Paste commentary, or load a sample..."></textarea>
+        <div class="chips">
+          <span class="chip" onclick="loadSample('isl_scout','g_commentary')">Load ISL test match</span>
+          <span class="chip" onclick="loadSample('isl_roster','g_roster')">Load ISL roster</span>
+        </div>
+      </div>
+      <div class="card">
+        <label>Roster (optional, one player per line)</label>
+        <textarea id="g_roster" class="small" placeholder="One player per line"></textarea>
+        <div class="hint">Finds each player's mistake-moments in the commentary, shows what went wrong and the better approach on a 2D pitch, estimates their ceiling, and builds team-strategy notes.</div>
+        <button class="go" id="g_go" onclick="runDev()">Run development lab</button>
+        <div id="g_err" class="err"></div>
+      </div>
+    </div>
+    <div id="g_out" style="margin-top:18px;"></div>
+  </div>
+
   <!-- VALIDATION -->
   <div id="panel-val" class="hidden">
     <div class="card">
@@ -608,7 +681,7 @@ Optional Video signal: OpenCV motion analysis ─▶ composure score</div>
 
 <script>
 function showTab(t){
-  ['pen','scout','plan','val'].forEach(x=>{
+  ['pen','scout','plan','dev','val'].forEach(x=>{
     document.getElementById('tab-'+x).classList.toggle('active', x===t);
     document.getElementById('panel-'+x).classList.toggle('hidden', x!==t);
   });
@@ -739,6 +812,106 @@ async function runValidation(){
     document.getElementById('v_out').innerHTML=h;
   }catch(e){ err.textContent='Request failed: '+e; }
   finally{ btn.disabled=false; btn.textContent=old; }
+}
+
+/* ---------- Development Lab: 2D pitch simulation ---------- */
+const SCEN = {
+  shot:     {actual:{path:[[72,34],[103,15]], color:'#ff5d5d'},
+             better:{path:[[72,34],[88,46],[103,40]], color:'#28d17c', mate:[88,46]}},
+  position: {actual:{path:[[40,28],[58,16]], color:'#ff5d5d', runner:[[26,40],[6,33]]},
+             better:{path:[[40,28],[30,36]], color:'#28d17c', runner:[[26,40],[20,40]]}},
+  control:  {actual:{path:[[52,34],[61,21]], color:'#ff5d5d'},
+             better:{path:[[52,34],[45,40],[33,44]], color:'#28d17c', mate:[33,44]}},
+  pass:     {actual:{path:[[42,34],[74,12]], color:'#ff5d5d'},
+             better:{path:[[42,34],[55,42]], color:'#28d17c', mate:[55,42]}},
+  duel:     {actual:{path:[[50,34],[64,30]], color:'#ff5d5d'},
+             better:{path:[[50,34],[45,38]], color:'#28d17c'}},
+};
+function pitchSVG(){
+  return `<svg class="simpitch" viewBox="0 0 105 68" preserveAspectRatio="xMidYMid meet">
+    <rect x="0" y="0" width="105" height="68" fill="#1c7d40"/>
+    <rect x="2" y="2" width="101" height="64" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="0.5"/>
+    <line x1="53.5" y1="2" x2="53.5" y2="66" stroke="rgba(255,255,255,.45)" stroke-width="0.4"/>
+    <circle cx="53.5" cy="34" r="8" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="0.4"/>
+    <rect x="87" y="16" width="16" height="36" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="0.4"/>
+    <rect x="97" y="26" width="6" height="16" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="0.4"/>
+    <rect x="103" y="29.5" width="2" height="9" fill="rgba(255,255,255,.9)"/>
+    <g class="simlayer"></g></svg>`;
+}
+function pts(a){ return a.map(p=>p.join(',')).join(' '); }
+function playSim(svg, scenario, mode){
+  const cfg=SCEN[scenario]; if(!cfg) return; const part=cfg[mode];
+  const NS='http://www.w3.org/2000/svg';
+  const layer=svg.querySelector('.simlayer'); layer.innerHTML='';
+  if(part.runner){ const r=document.createElementNS(NS,'polyline');
+    r.setAttribute('points',pts(part.runner)); r.setAttribute('fill','none');
+    r.setAttribute('stroke','#ffd166'); r.setAttribute('stroke-width','0.7');
+    r.setAttribute('stroke-dasharray','2 2'); r.setAttribute('opacity','0.6'); layer.appendChild(r); }
+  if(part.mate){ const c=document.createElementNS(NS,'circle');
+    c.setAttribute('cx',part.mate[0]); c.setAttribute('cy',part.mate[1]); c.setAttribute('r','1.9');
+    c.setAttribute('fill','#9fe6c0'); layer.appendChild(c); }
+  const poly=document.createElementNS(NS,'polyline'); poly.setAttribute('points',pts(part.path));
+  poly.setAttribute('fill','none'); poly.setAttribute('stroke',part.color); poly.setAttribute('stroke-width','0.8');
+  poly.setAttribute('stroke-dasharray','2 1.5'); poly.setAttribute('opacity','0.65'); layer.appendChild(poly);
+  const ball=document.createElementNS(NS,'circle'); ball.setAttribute('r','1.7'); ball.setAttribute('fill','#fff');
+  ball.setAttribute('stroke','#111'); ball.setAttribute('stroke-width','0.3'); layer.appendChild(ball);
+  const P=part.path; let seg=0,t=0; const sp=0.045;
+  ball.setAttribute('cx',P[0][0]); ball.setAttribute('cy',P[0][1]);
+  function frame(){
+    if(seg>=P.length-1){ ball.setAttribute('cx',P[P.length-1][0]); ball.setAttribute('cy',P[P.length-1][1]); return; }
+    const a=P[seg],b=P[seg+1];
+    ball.setAttribute('cx',a[0]+(b[0]-a[0])*t); ball.setAttribute('cy',a[1]+(b[1]-a[1])*t);
+    t+=sp; if(t>=1){ t=0; seg++; } requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+function playFrom(btn, scenario, mode){
+  const wrap=btn.closest('.simwrap'); const svg=wrap.querySelector('svg.simpitch');
+  playSim(svg, scenario, mode);
+  const lbl=wrap.querySelector('.simlabel');
+  lbl.textContent = mode==='actual' ? 'Replaying what happened…' : 'The recommended approach.';
+  lbl.style.color = mode==='actual' ? 'var(--red)' : 'var(--green)';
+}
+async function runDev(){
+  const err=document.getElementById('g_err'); err.textContent=''; document.getElementById('g_out').innerHTML='';
+  const fd=new FormData();
+  fd.append('commentary', document.getElementById('g_commentary').value);
+  fd.append('roster', document.getElementById('g_roster').value);
+  scoutSettings(fd);
+  const d=await post('/develop', fd, document.getElementById('g_go'), '', err); if(!d) return;
+  let h=''; const ts=d.team_strategy;
+  h+='<div class="teambox"><b>Team strategy.</b> '+ts.headline+'<ul>';
+  ts.notes.forEach(n=> h+=`<li><b>${n.area}</b>${n.count?' ×'+n.count:''}: ${n.recommendation}</li>`);
+  h+='</ul></div>';
+  d.players.forEach((p,idx)=>{
+    const cg=p.ceiling, bandkey=cg.band.split(' ')[0];
+    h+=`<div class="devcard"><div class="devhead">
+      <h3>${p.player} ${p.potential_flag?'<span class="star">★</span>':''}</h3>
+      <span class="pill ${p.verdict}">${p.verdict}</span>
+      <span class="ceil">${p.role_name} · now ${cg.current} → ceiling ${cg.ceiling}</span>
+      <span class="band ${bandkey}">${cg.band}</span></div>
+      <div class="growbar"><div class="cur" style="width:${cg.current}%"></div><div class="cap" style="left:${cg.ceiling}%"></div></div>
+      <div style="font-size:13px;color:#cdd8ee;margin-top:8px;">${p.unlock}</div>`;
+    if(!p.mistakes.length){ h+=`<div style="font-size:13px;color:var(--green);margin-top:8px;">No clear mistakes flagged — maintain standards and add minutes.</div>`; }
+    p.mistakes.forEach((m,mi)=>{
+      h+=`<div class="mistake">
+        <div class="simwrap">${pitchSVG()}
+          <div class="simbtns">
+            <span class="simbtn bad" onclick="playFrom(this,'${m.scenario}','actual')">▶ What happened</span>
+            <span class="simbtn good" onclick="playFrom(this,'${m.scenario}','better')">▶ Better approach</span>
+          </div>
+          <div class="simlabel"></div>
+        </div>
+        <div class="mtext">
+          <div class="row"><b class="w">What went wrong${m.minute?(' (min '+m.minute+')'):''}:</b> ${m.what_went_wrong}</div>
+          <div class="row"><b>Why:</b> ${m.why}</div>
+          <div class="row"><b class="g">Better approach:</b> ${m.better_approach}</div>
+          <div class="row" style="color:var(--mut);"><b>Drill:</b> ${m.drill}</div>
+        </div></div>`;
+    });
+    h+='</div>';
+  });
+  document.getElementById('g_out').innerHTML=h;
 }
 </script>
 </body>
