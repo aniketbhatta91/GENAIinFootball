@@ -1,0 +1,40 @@
+REAL-WORLD VALIDATION INPUT  -  ISL Emerging Player winners (2014 to 2024-25)
+============================================================================
+Scouting-style descriptions PARAPHRASED from public ISL season reviews and
+player profiles (sources listed in the validation report). Each player here is
+a real ISL Emerging Player of the League winner; we test whether the engine,
+reading only these performance descriptions, rates them as top talent and the
+correct role -- then compare against who actually earned India national caps.
+
+Sandesh Jhingan was a commanding centre-back, dominant and strong in the aerial duel with robust physical defending. Jhingan read the game superbly, composed positioning, intelligent marking and crucial last-ditch tackles. A mature, assured defender who anchored the back line.
+Sandesh Jhingan won his individual duels with powerful headers and well-timed interceptions, a no-nonsense centre-back with real presence.
+
+Jeje Lalpekhlua was a clinical striker, a sharp finisher who scored six goals with composed, poacher's movement in the box. Jeje held the ball up with physical strength and showed intelligent positioning. A natural goalscorer with a cool, clinical edge in front of goal.
+Jeje Lalpekhlua led the line brilliantly, strong hold-up play and a clinical finish whenever chances fell to him.
+
+Jerry Lalrinzuala impressed at left-back with an incredible work rate, tireless energy up and down the flank and strong recovering tackles. Jerry was quick with good pace and delivered dangerous creative crosses. A relentless, energetic young full-back.
+Jerry Lalrinzuala overlapped tirelessly with real pace, defended his flank with strong tackling and whipped in dangerous crosses.
+
+Lalruatthara had a bright debut at left-back with decent pace and work rate. However, Lalruatthara struggled to live up to expectations afterwards, his form inconsistent and his defending exposed at times. A raw full-back who faded from contention.
+Lalruatthara showed flashes of energy but was caught out of position too often, a sloppy error creeping into his game.
+
+Sahal Abdul Samad was a creative attacking midfielder with lovely control and technique, a flair playmaker who beats opponents with skillful dribbling. Sahal unlocked defences with inventive key passes and composed vision. A talented young creator with real technical quality.
+Sahal Abdul Samad dribbled past defenders with close control and set up chances with creative, incisive passing.
+
+Sumit Rathi was a composed young defender with maturity beyond his years and a good work rate across the back line. After a promising start, however, Sumit struggled for regular minutes and his impact faded. A developing centre-back yet to fully establish himself.
+Sumit Rathi defended with calm composure and intelligent positioning, though he remained raw and inconsistent for long spells.
+
+Lalengmawia, known as Apuia, blossomed into a composed central midfielder, calm and assured on the ball with intelligent passing and strong positioning. Apuia pressed tirelessly with a great work rate and dictated the tempo against tough opponents. One of the league's best young midfielders.
+Lalengmawia Apuia controlled midfield with composed passing, relentless pressing and mature game management.
+
+Roshan Naorem excelled at full-back with rapid pace and a tireless work rate, the top Indian assist provider with dangerous creative crosses. Roshan overlapped relentlessly and tracked back with strong tackles. An energetic, productive young full-back.
+Roshan Naorem bombed forward with electric pace and delivered creative assists, a tireless engine down the flank.
+
+Sivasakthi Narayanan was a quick, clinical striker who scored six goals with sharp finishing and excellent pace in behind. Sivasakthi showed composed movement and a poacher's instinct in the box. An exciting young forward with a clinical edge.
+Sivasakthi Narayanan raced in behind with blistering pace and finished clinically, a sharp poacher's instinct in the area.
+
+Vikram Pratap Singh was a direct winger with electric pace and skillful dribbling, beating full-backs and delivering creative crosses. Vikram was lively and energetic with a strong work rate down the flank. A dangerous, direct young wide player.
+Vikram Pratap Singh dribbled past his marker with rapid pace and skill, then whipped in a dangerous creative cross.
+
+Brison Fernandes was a clinical forward who scored seven goals with sharp finishing and intelligent movement. Brison combined composure with creative link-up play and a poacher's positioning. A standout young striker with a clinical, composed touch.
+Brison Fernandes finished clinically with both feet, composed in front of goal and creative in the build-up.

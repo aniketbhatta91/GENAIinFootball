@@ -1,0 +1,37 @@
+ISL / DOMESTIC SCOUTING COMMENTARY - SAMPLE DATASET
+(Fictional players, for demonstrating the scouting engine)
+===========================================================
+
+MATCH 1
+Min 8: Arjun Nair leads the line brilliantly, a clinical finish into the bottom corner. The young striker looks a real prospect, sharp and composed in front of goal.
+Min 14: Rohan Das beats two defenders with a mazy dribble down the right, wonderful close control and flair. Quick and direct, the winger is a constant threat.
+Min 21: Vikram Singh dictates the midfield with composed, intelligent passing. His vision and range of distribution are excellent, threading an incisive through ball.
+Min 27: Karthik Menon is commanding at the back, strong in the aerial duel and wins a towering header. Robust defending and good marking from the centre-back.
+Min 33: Arjun Nair with electric pace in behind, races onto the through ball and finishes confidently. Composed again, a promising talent with real speed.
+Min 39: Sameer Khan produces a brilliant save, superb shot-stopping and reflexes, then commands his box well to claim the cross. Confident goalkeeping.
+Min 42: Karthik Menon makes a strong tackle and a powerful clearance, dominant in the aerial duel once more. Physical and well-positioned defender.
+Min 45: Deepak Yadav holds the ball up with real physical strength, strong and muscular, but his finishing is wasteful, a poor effort dragged wide.
+Min 48: Sameer Khan again with a magnificent save, sharp reflexes and assured handling, commanding his area. Calm and composed in goal.
+
+MATCH 2
+Min 5: Lalrinpuia bombs forward from full-back, rapid pace and a tireless work rate, whips in a dangerous creative cross. Energetic and relentless down the flank.
+Min 12: Pranav Reddy, a promising youngster, shows lovely creativity and a clever key pass to set up a chance. Raw defensively and caught out of position, but exciting potential.
+Min 19: Vikram Singh again controls the tempo, calm and assured, a mature presence pinging passes across the pitch. Excellent composure and creative vision under pressure.
+Min 24: Rohan Das with another skillful run, beats his man with trickery and pace, but his final ball was sloppy and wasteful this time.
+Min 31: Karthik Menon makes a last-ditch tackle and a crucial interception, reads the danger well. Strong, intelligent positioning and composed defending.
+Min 36: Deepak Yadav wins a powerful aerial duel and a strong header, muscular hold-up play, but again the finishing let him down with a sloppy miss.
+Min 38: Imran Sheikh is quick and lively on the wing, good pace and a tidy dribble, but inconsistent, a careless miscontrol loses possession. A raw prospect with potential.
+Min 44: Sameer Khan denied the striker one-on-one, magnificent reflexes and handling. Confident, composed shot-stopping in goal.
+Min 49: Imran Sheikh races clear with blistering pace and skill, beats the full-back, but his creative delivery was wasteful again. Exciting young winger, still developing.
+Min 52: Bhaskar Rao, the experienced defender, is composed and well-placed, excellent anticipation and timing, shackles the striker with smart marking.
+Min 58: Arjun Nair drags a shot wide, a rare wasteful moment, slightly off the pace in that move, but still the brightest young attacker on show.
+Min 61: Lalrinpuia overlaps with rapid pace and relentless energy, a tireless full-back who covers ground and delivers a fine creative cross. Strong work rate.
+Min 64: Pranav Reddy unlocks the defence with an inventive pass, real playmaker vision and creativity. The talented teenager is developing fast, though lightweight in the duel.
+Min 67: Bhaskar Rao reads the play superbly, a composed interception and strong positioning, clears the danger calmly. Mature, intelligent defending.
+Min 70: Deepak Yadav wins another aerial duel, powerful and commanding physically, sets up a chance, but his own finishing was wasteful once more.
+Min 76: Lalrinpuia tracks back tirelessly, relentless energy, covers ground brilliantly and makes a recovering tackle. A real engine at full-back with pace.
+Min 79: Pranav Reddy with another creative key pass, inventive playmaking and lovely vision, the young prospect oozes potential despite raw defensive work.
+Min 83: Vikram Singh sprays a brilliant switch of play, his passing range and creativity standing out. Composed and influential throughout.
+Min 86: Bhaskar Rao with a commanding clearance and a strong aerial header, composed marking and excellent positioning at the back.
+Min 88: Rohan Das delivers a wonderful creative cross, beats the defender with pace and skill. Direct, exciting, and dangerous all evening.
+Min 90: Imran Sheikh with a final burst of pace and a skillful run, raw but promising, the young winger shows real potential going forward.

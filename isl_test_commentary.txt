@@ -1,0 +1,32 @@
+ISL-STYLE SCOUTING COMMENTARY - TEST DATASET
+Kolkata Mariners vs Bengaluru Blues  (fictional players, ISL-style match)
+For testing the Scouting tab. Names are fictional; format matches the app.
+=========================================================================
+
+FIRST HALF
+Min 3: Gurpreet Sandhu leads the Mariners line, a clinical finish low into the corner. The striker is sharp and composed in front of goal, a real poacher's instinct.
+Min 7: Manvir Lakra beats his full-back with a mazy dribble, wonderful close control and flair. Quick and direct, the young winger is an exciting prospect down the right.
+Min 11: Sourav Mahato dictates midfield with composed, intelligent passing. Excellent vision and range of distribution, threading an incisive through ball.
+Min 15: Abhishek Gurung is commanding at the back, strong in the aerial duel and wins a towering header. Robust, physical defending from the centre-back.
+Min 19: Ranveer Sodhi produces a brilliant save, superb shot-stopping and sharp reflexes, then commands his box to claim the cross. Assured goalkeeping.
+Min 23: Daniyal Ahmed races clear with blistering pace and a tidy dribble for the Blues, but his final ball was wasteful and sloppy. Raw but quick winger.
+Min 27: Farhan Qureshi, a promising young playmaker, unlocks the defence with an inventive key pass. Lovely creativity and vision, though lightweight in the duel.
+Min 31: Tejas Pillai overlaps from full-back with rapid pace and a tireless work rate, whips in a dangerous creative cross. Energetic and relentless down the flank.
+Min 36: Omar Sheikh wins a strong aerial duel and holds the ball up with real physical power, but his finishing was wasteful, dragging the shot wide.
+Min 41: Nikhil Barman reads the danger superbly, a composed interception and calm clearance. Mature, intelligent positioning from the defender.
+Min 44: Aakash Thapa presses tirelessly, relentless energy and a strong recovering tackle, covers ground brilliantly. A real engine in midfield.
+
+SECOND HALF
+Min 49: Gurpreet Sandhu with electric pace in behind, races onto the through ball and finishes confidently. Composed again, a clinical striker on form.
+Min 53: Karan Iyer makes a magnificent one-on-one save for the Blues, brilliant reflexes and assured handling. Confident and composed in goal.
+Min 57: Manvir Lakra with another skillful run, beats two defenders with trickery and pace, sets up a chance with a creative cross. Direct and dangerous.
+Min 61: Vivaan Rana is strong and physical at the back, wins his duels and makes a powerful clearance, but caught out of position once, a rare error.
+Min 65: Farhan Qureshi sprays an inventive switch of play, real playmaker creativity and vision. The talented teenager oozes potential despite raw defensive work.
+Min 69: Lalremruata bombs forward at full-back, rapid pace and tireless work rate, tracks back well with a strong tackle. Energetic and relentless.
+Min 73: Sourav Mahato controls the tempo, calm and assured, a mature presence pinging passes across the pitch. Excellent composure and passing range.
+Min 77: Daniyal Ahmed is quick and lively again but inconsistent, a careless miscontrol loses possession. Pacey winger, still developing his end product.
+Min 81: Abhishek Gurung makes a last-ditch tackle and a dominant aerial header, strong and well-positioned. Physical, no-nonsense defending.
+Min 84: Pranav Iyer, a raw young striker off the bench, shows promising movement and a quick burst of pace, a real prospect though lightweight for now.
+Min 87: Omar Sheikh wins another aerial duel, powerful and commanding physically, but his own finishing let him down once more with a sloppy effort.
+Min 90: Gurpreet Sandhu nearly seals it, composed and clinical, forces a fine save. The striker has been the standout finisher all evening.
+Min 92: Tejas Pillai delivers one final creative cross with pace and energy, a tireless full-back to the end. Strong work rate throughout.

@@ -1,0 +1,9 @@
+transformers>=4.40.0
+torch>=2.6.0
+scikit-learn>=1.4.0
+flask>=3.0.0
+flask-cors>=4.0.0
+werkzeug>=3.0.1
+pandas>=2.1.0
+numpy>=1.24.0
+opencv-python>=4.8.0   # video footage processing (penalty_app_server.py)

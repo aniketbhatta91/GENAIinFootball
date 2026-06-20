@@ -1,0 +1,18 @@
+# ISL test roster - one player per line. ",POSITION" is just your note (ignored by engine).
+# --- Kolkata Mariners ---
+Ranveer Sodhi, GK
+Abhishek Gurung, CB
+Nikhil Barman, CB
+Tejas Pillai, FB
+Sourav Mahato, CM
+Aakash Thapa, CM
+Manvir Lakra, W
+Gurpreet Sandhu, ST
+# --- Bengaluru Blues ---
+Karan Iyer, GK
+Vivaan Rana, CB
+Lalremruata, FB
+Farhan Qureshi, CM
+Daniyal Ahmed, W
+Omar Sheikh, ST
+Pranav Iyer, ST

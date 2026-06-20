@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Generated analysis outputs
+penalty_fusion_results.*
+psg_arsenal_analysis_results.json
+scout_shortlist.csv
+scout_shortlist.json
+validation/validation_results.csv
+
+# Uploaded/processed media & temp
+*.transcript.txt
+demo_data/*.mp4
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log

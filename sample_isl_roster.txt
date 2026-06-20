@@ -1,0 +1,11 @@
+# Squad / watchlist roster - one player per line.  Optional ",POSITION" ignored by engine (for your notes).
+Arjun Nair, ST
+Rohan Das, W
+Vikram Singh, CM
+Karthik Menon, CB
+Sameer Khan, GK
+Lalrinpuia, FB
+Deepak Yadav, ST
+Pranav Reddy, CM
+Imran Sheikh, W
+Bhaskar Rao, CB
