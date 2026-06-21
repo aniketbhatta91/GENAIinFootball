@@ -366,7 +366,9 @@ INDEX_HTML = r"""
   body.bg-pitch .overlay { background:rgba(6,11,20,.76); }
   .ball { position:fixed; right:24px; bottom:18px; z-index:-1; font-size:44px; opacity:.22; }
 
-  header { padding:18px 24px 0; display:flex; align-items:center; gap:14px; }
+  header { padding:18px 24px 0; display:flex; align-items:center; justify-content:center;
+    gap:14px; text-align:center; }
+  header .sub { text-align:center; }
   .crest { width:46px; height:46px; border-radius:50%; background:radial-gradient(circle at 35% 30%,#37a2ff,#0c4ea0);
     display:flex; align-items:center; justify-content:center; font-size:24px; box-shadow:0 2px 10px rgba(0,0,0,.4); }
   h1 { margin:0; font-size:22px; letter-spacing:.3px; }
