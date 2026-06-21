@@ -79,20 +79,21 @@ MINUTE_RE = re.compile(r"min\s*(\d+)", re.I)
 def detect_mistakes(sentences):
     """Return a list of mistake dicts found in the player's commentary."""
     found = []
-    seen = set()
     for s in sentences:
         low = _strip(s).lower()
         for mtype, cfg in MISTAKE_TYPES.items():
             if any(k in low for k in cfg["keywords"]):
                 m = MINUTE_RE.search(s)
-                key = (mtype, m.group(1) if m else len(found))
-                if key in seen:
+                minute = int(m.group(1)) if m else None
+                # dedupe: same type+minute, or a minute-less repeat of an existing type
+                if any(f["type"] == mtype and f["minute"] == minute for f in found):
                     continue
-                seen.add(key)
+                if minute is None and any(f["type"] == mtype for f in found):
+                    continue
                 found.append({
                     "type": mtype,
                     "scenario": cfg["scenario"],
-                    "minute": int(m.group(1)) if m else None,
+                    "minute": minute,
                     "snippet": s.strip()[:160],
                     "attribute": cfg["attr"],
                     "what_went_wrong": cfg["wrong"],

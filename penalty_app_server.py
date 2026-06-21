@@ -31,10 +31,12 @@ STATS_PATH = os.path.join(BASE, "player_penalty_stats.csv")
 
 # whitelisted sample files for the "Load sample" buttons
 SAMPLES = {
-    "penalty_demo": "commentary_psg_arsenal.txt",
-    "isl_scout":    "isl_test_commentary.txt",
-    "isl_roster":   "isl_test_roster.txt",
-    "real_isl":     "real_isl_cupfinal_2025.txt",
+    "penalty_demo":       "commentary_psg_arsenal.txt",
+    "isl_scout":          "isl_test_commentary.txt",
+    "isl_roster":         "isl_test_roster.txt",
+    "real_isl":           "real_isl_cupfinal_2025.txt",
+    "ileague_commentary": "real_ileague_commentary.txt",
+    "ileague_roster":     "real_ileague_roster.txt",
 }
 
 app = Flask(__name__)
@@ -675,7 +677,8 @@ Optional Video signal: OpenCV motion analysis ─▶ composure score</div>
         <div class="chips">
           <span class="chip" onclick="loadSample('isl_scout','s_commentary')">Load ISL test match</span>
           <span class="chip" onclick="loadSample('real_isl','s_commentary')">Load REAL ISL Cup Final</span>
-          <span class="chip" onclick="loadSample('isl_roster','s_roster')">Load ISL roster</span>
+          <span class="chip" onclick="loadSample('ileague_commentary','s_commentary')">Load REAL I-League match</span>
+          <span class="chip" onclick="loadSample('ileague_roster','s_roster')">Load I-League roster</span>
         </div>
         <label style="margin-top:10px;">…or upload transcript (.txt)</label>
         <input type="file" id="s_commentary_file" accept=".txt"/>
@@ -724,6 +727,8 @@ Optional Video signal: OpenCV motion analysis ─▶ composure score</div>
         <label>Commentary / transcript</label>
         <textarea id="g_commentary" placeholder="Paste commentary, or load a sample..."></textarea>
         <div class="chips">
+          <span class="chip" onclick="loadSample('ileague_commentary','g_commentary')">Load I-League match (real)</span>
+          <span class="chip" onclick="loadSample('ileague_roster','g_roster')">Load I-League roster</span>
           <span class="chip" onclick="loadSample('isl_scout','g_commentary')">Load ISL test match</span>
           <span class="chip" onclick="loadSample('isl_roster','g_roster')">Load ISL roster</span>
         </div>
