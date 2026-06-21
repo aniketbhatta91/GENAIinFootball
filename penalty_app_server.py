@@ -357,8 +357,9 @@ def transcribe():
 
 @app.route("/llm_status")
 def llm_status():
-    return jsonify({"llm": "OpenAI configured" if llm_insights.llm_configured()
-                    else "offline knowledge base (set OPENAI_API_KEY to enable OpenAI)"})
+    name = llm_insights._provider()[0]
+    return jsonify({"llm": f"{name.capitalize()} configured" if name
+                    else "offline knowledge base (set GROQ_API_KEY or OPENAI_API_KEY)"})
 
 
 @app.route("/develop", methods=["POST"])
@@ -616,34 +617,40 @@ INDEX_HTML = r"""
     <p>How GenAI Football turns raw match data into decisions.</p>
 
     <h3>End-to-end pipeline</h3>
-    <div class="pipe">Audio/Video ─▶ Transcription (Whisper, multilingual)
-        │
+    <div class="pipe">Match video / audio ─▶ Transcription (Whisper, multilingual)
+        │                         (feeds EVERY section — cheaper than frame analysis)
 Commentary / transcript text ─▶ NLP layer
-        ├─ Player detection (regex + roster matching)
-        ├─ Sentiment analysis (rule-based lexicon  OR  RoBERTa/BERT)
+        ├─ Player detection (regex + roster, team-name filtering)
+        ├─ Sentiment analysis (offline lexicon  OR  RoBERTa/BERT)
         └─ Attribute extraction (11 football attributes)
         │
         ├─▶ Penalty Fusion Engine ─▶ ranked takers
         ├─▶ Scouting Engine ─▶ role-fit shortlist + verdict
         ├─▶ Improvement Plan ─▶ training drills per weakness
+        ├─▶ Development Lab ─▶ mistake-moments + 2D pitch sim + ceiling
         └─▶ Validation/Backtest ─▶ metrics vs real outcomes
+        │
+Player profile ─▶ Cross-continent insight
+        ├─ LLM via Groq or OpenAI (grounded in the strategy knowledge base), or
+        └─ Offline continental-strategies knowledge base (no key needed)
 
-Optional Video signal: OpenCV motion analysis ─▶ composure score</div>
+Optional video signal: OpenCV motion analysis ─▶ composure score</div>
 
     <h3>Models & technology</h3>
     <ul>
-      <li><b>Speech-to-text:</b> OpenAI Whisper (Hindi / Bengali / Tamil / English), translate-to-English mode.</li>
-      <li><b>Sentiment:</b> default offline rule-based lexicon; optional <b>cardiffnlp/twitter-roberta-base-sentiment</b> (BERT/RoBERTa via HuggingFace Transformers + PyTorch).</li>
+      <li><b>Speech-to-text:</b> OpenAI Whisper (Hindi / Bengali / Tamil / English), translate-to-English — feeds every tab.</li>
+      <li><b>LLM development insight:</b> <b>Groq</b> (llama-3.3-70b, free & fast) or <b>OpenAI</b> (gpt-4o-mini) for cross-continent coaching advice, <b>grounded</b> in a curated continental-strategies knowledge base; falls back to that knowledge base offline when no <code>GROQ_API_KEY</code> / <code>OPENAI_API_KEY</code> is set. (Groq uses the OpenAI-compatible API.)</li>
+      <li><b>Sentiment:</b> default offline rule-based lexicon; optional <b>cardiffnlp/twitter-roberta-base-sentiment</b> (BERT/RoBERTa via Transformers + PyTorch).</li>
       <li><b>Video:</b> OpenCV frame-difference motion/jitter → relative composure score (placeholder for a MediaPipe/YOLO pose pipeline).</li>
-      <li><b>Scoring:</b> transparent weighted fusion (penalty) and role-weighted attribute model (scouting); optional XGBoost classifier in the full backend.</li>
-      <li><b>Backend:</b> Python + Flask REST API. <b>Frontend:</b> single-page HTML/JS. <b>Data:</b> CSV rosters/stats.</li>
+      <li><b>Scoring:</b> transparent weighted fusion (penalty) and role-weighted attribute model (scouting); development ceiling + mistake-detection engine.</li>
+      <li><b>Backend:</b> Python + Flask REST API. <b>Frontend:</b> single-page HTML/JS. <b>Data:</b> CSV rosters/stats + curated knowledge bases.</li>
     </ul>
 
     <h3>Why this design</h3>
-    <p>The rule-based path runs instantly offline with no downloads, so the app always works; the BERT path is an opt-in upgrade for richer sentiment. Scoring is deliberately transparent (weights you can read and tune) so a coach or scout can trust and adjust it, rather than a black box.</p>
+    <p>Every heavy/paid capability (BERT, OpenAI, Whisper) is <b>opt-in with an offline fallback</b>, so the app always runs free and fast; adding a key or model just upgrades quality. The LLM is deliberately <b>grounded</b> in our knowledge base so its advice stays anchored to real coaching philosophies rather than hallucinating. Scoring stays transparent (weights you can read and tune in the Optimization panel) so a coach can trust and adjust it.</p>
 
     <h3>Validation</h3>
-    <p>The Validation tab backtests the scouting engine against real ISL "Emerging Player" winners and their actual India call-ups — role accuracy, precision@K, and rating separation.</p>
+    <p>The Validation tab backtests the scouting engine against 14 real Indian prospects — ISL "Emerging Player" winners plus Indian Arrows graduates from a real I-League match — and their actual India call-ups: role accuracy, precision@K, and rating separation.</p>
   </div>
 </div>
 
@@ -675,6 +682,18 @@ Optional Video signal: OpenCV motion analysis ─▶ composure score</div>
     <div class="hint">Weights are auto-normalised to 100%. RECOMMENDED ≥ <span id="rmv">70</span>, BACKUP ≥ <span id="bmv">50</span>.</div>
     <div class="setrow"><label>RECOMMENDED threshold</label><input type="range" id="opt_rec" min="50" max="90" value="70" oninput="rv('opt_rec');document.getElementById('rmv').textContent=this.value"><span class="val" id="opt_rec_v">70</span></div>
     <div class="setrow"><label>BACKUP threshold</label><input type="range" id="opt_backup" min="30" max="70" value="50" oninput="rv('opt_backup');document.getElementById('bmv').textContent=this.value"><span class="val" id="opt_backup_v">50</span></div>
+
+    <div class="seccap">AI development insight (LLM)</div>
+    <div class="setrow"><label>LLM status</label><span class="val" id="opt_llm" style="width:auto;color:var(--accent);">checking…</span></div>
+    <div class="hint">Cross-continent insights use <b>Groq</b> (set <code>GROQ_API_KEY</code>) or <b>OpenAI</b>
+      (set <code>OPENAI_API_KEY</code>). Pick the model with <code>GROQ_MODEL</code> /
+      <code>OPENAI_MODEL</code>. With no key, the 🌍 AI insight buttons use the offline
+      continental-strategies knowledge base — still fully functional, just not LLM-generated.</div>
+
+    <div class="seccap">Video → text</div>
+    <div class="hint">The Transcribe tab and per-section "transcribe a video/audio" inputs use
+      Whisper (needs <code>openai-whisper</code> + ffmpeg) to turn match audio into text for any tab —
+      a cheaper alternative to full-frame video analysis.</div>
 
     <div class="savebar">
       <button class="go" style="margin:0;" onclick="closeModal('opt')">Apply settings</button>
@@ -916,7 +935,9 @@ function scoutInsight(i){ const p=window._scout[i]; if(!p) return;
   fetchInsight(p.player, p.best_role||'player', p.attributes||{}, p.strengths||[], p.weaknesses||[], 's_insight'); }
 function devInsight(i){ const p=window._dev[i]; if(!p) return;
   fetchInsight(p.player, p.best_role||'player', p.attributes||{}, [], [], 'g_insight_'+i); }
-function openModal(id){ document.getElementById('modal-'+id).classList.add('open'); }
+function openModal(id){ document.getElementById('modal-'+id).classList.add('open');
+  if(id==='opt'){ fetch('/llm_status').then(r=>r.json()).then(d=>{
+    const el=document.getElementById('opt_llm'); if(el) el.textContent=d.llm; }).catch(()=>{}); } }
 function closeModal(id){ document.getElementById('modal-'+id).classList.remove('open');
   if(id==='opt') document.getElementById('opt_applied').textContent='Settings applied ✓ — re-run a tab to compare.'; }
 function rv(id){ document.getElementById(id+'_v').textContent=document.getElementById(id).value; }
