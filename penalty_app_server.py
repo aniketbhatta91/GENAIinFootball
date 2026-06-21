@@ -347,8 +347,12 @@ INDEX_HTML = r"""
   body { margin:0; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
          color:var(--txt); min-height:100vh; }
   /* 3D-style stadium backdrop (shown until you run a section) */
-  .stadium { position:fixed; inset:0; z-index:-3; opacity:1; transition:opacity .9s ease; }
-  .stadium svg { width:100%; height:100%; display:block; }
+  .stadium { position:fixed; inset:0; z-index:-3; opacity:1; transition:opacity .9s ease; background:#0a1024; }
+  .stadium svg { position:absolute; inset:0; width:100%; height:100%; display:block; }
+  /* real stadium photo (drop your image at static/emirates_stadium.jpg);
+     if the file is absent the request 404s and the SVG stadium shows instead */
+  .stadium .photo { position:absolute; inset:0; background-position:center; background-size:cover;
+    background-repeat:no-repeat; background-image:url('/static/emirates_stadium.jpg'); }
   .stadium .cap { position:absolute; left:0; right:0; bottom:7%; text-align:center;
     color:rgba(255,255,255,.6); font-size:13px; letter-spacing:2px; text-transform:uppercase; }
   body.bg-pitch .stadium { opacity:0; }
@@ -542,6 +546,7 @@ INDEX_HTML = r"""
     <circle cx="840" cy="630" r="34" fill="url(#lightglow)"/>
   </g>
 </svg>
+<div class="photo"></div>
 <div class="cap">GenAI Football · Stadium View</div>
 </div>
 <div class="pitch"></div><div class="pbox l"></div><div class="pbox r"></div>
