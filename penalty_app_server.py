@@ -344,17 +344,26 @@ INDEX_HTML = r"""
   * { box-sizing:border-box; }
   body { margin:0; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
          color:var(--txt); min-height:100vh; }
-  .pitch { position:fixed; inset:0; z-index:-2;
+  /* 3D-style stadium backdrop (shown until you run a section) */
+  .stadium { position:fixed; inset:0; z-index:-3; opacity:1; transition:opacity .9s ease; }
+  .stadium svg { width:100%; height:100%; display:block; }
+  .stadium .cap { position:absolute; left:0; right:0; bottom:7%; text-align:center;
+    color:rgba(255,255,255,.6); font-size:13px; letter-spacing:2px; text-transform:uppercase; }
+  body.bg-pitch .stadium { opacity:0; }
+  .pitch { position:fixed; inset:0; z-index:-2; opacity:0; transition:opacity .9s ease;
     background:repeating-linear-gradient(0deg,#1f8a48 0 7.5%, #1b7d40 7.5% 15%); }
+  body.bg-pitch .pitch { opacity:1; }
   .pitch::before { content:""; position:absolute; left:50%; top:50%;
     width:min(46vh,340px); height:min(46vh,340px); transform:translate(-50%,-50%);
     border:4px solid rgba(255,255,255,.16); border-radius:50%; }
   .pitch::after { content:""; position:absolute; top:0; bottom:0; left:50%; width:4px;
     margin-left:-2px; background:rgba(255,255,255,.16); }
-  .pbox { position:fixed; z-index:-2; border:4px solid rgba(255,255,255,.14); }
+  .pbox { position:fixed; z-index:-2; border:4px solid rgba(255,255,255,.14); opacity:0; transition:opacity .9s ease; }
+  body.bg-pitch .pbox { opacity:1; }
   .pbox.l { left:-2px; top:50%; width:13%; height:42%; transform:translateY(-50%); border-left:0; }
   .pbox.r { right:-2px; top:50%; width:13%; height:42%; transform:translateY(-50%); border-right:0; }
-  .overlay { position:fixed; inset:0; z-index:-1; background:rgba(6,11,20,.76); }
+  .overlay { position:fixed; inset:0; z-index:-1; background:rgba(6,11,20,.5); transition:background .9s ease; }
+  body.bg-pitch .overlay { background:rgba(6,11,20,.76); }
   .ball { position:fixed; right:24px; bottom:18px; z-index:-1; font-size:44px; opacity:.22; }
 
   header { padding:18px 24px 0; display:flex; align-items:center; gap:14px; }
@@ -470,6 +479,67 @@ INDEX_HTML = r"""
 </style>
 </head>
 <body>
+<div class="stadium">
+<svg viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="sky" cx="50%" cy="16%" r="100%">
+      <stop offset="0" stop-color="#243156"/><stop offset="55%" stop-color="#121a32"/><stop offset="100%" stop-color="#070c1a"/>
+    </radialGradient>
+    <linearGradient id="roofg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3c486c"/><stop offset="1" stop-color="#19213a"/>
+    </linearGradient>
+    <radialGradient id="grassg" cx="50%" cy="42%" r="75%">
+      <stop offset="0" stop-color="#2cab5f"/><stop offset="1" stop-color="#15772f"/>
+    </radialGradient>
+    <radialGradient id="lightglow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="rgba(255,255,240,.85)"/><stop offset="1" stop-color="rgba(255,255,240,0)"/>
+    </radialGradient>
+    <pattern id="crowd" width="9" height="9" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.1" fill="rgba(255,255,255,.22)"/>
+      <circle cx="6.5" cy="6" r="1.1" fill="rgba(255,255,255,.12)"/>
+      <circle cx="4" cy="7.5" r="1" fill="rgba(255,220,220,.18)"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="800" fill="url(#sky)"/>
+  <!-- lower bowl depth -->
+  <ellipse cx="600" cy="460" rx="548" ry="318" fill="#0b1322"/>
+  <!-- roof outer ring -->
+  <ellipse cx="600" cy="418" rx="568" ry="342" fill="url(#roofg)"/>
+  <ellipse cx="600" cy="418" rx="566" ry="340" fill="none" stroke="rgba(255,255,255,.10)" stroke-width="3"/>
+  <!-- upper tier (red) + crowd -->
+  <ellipse cx="600" cy="418" rx="478" ry="280" fill="#b81f2a"/>
+  <ellipse cx="600" cy="418" rx="478" ry="280" fill="url(#crowd)"/>
+  <ellipse cx="600" cy="418" rx="478" ry="280" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="2"/>
+  <!-- lower tier (deeper red) + crowd -->
+  <ellipse cx="600" cy="418" rx="398" ry="226" fill="#8f1620"/>
+  <ellipse cx="600" cy="418" rx="398" ry="226" fill="url(#crowd)"/>
+  <ellipse cx="600" cy="418" rx="398" ry="226" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="2"/>
+  <!-- pitch surround -->
+  <ellipse cx="600" cy="418" rx="338" ry="188" fill="#0d1a30"/>
+  <!-- pitch -->
+  <ellipse cx="600" cy="418" rx="314" ry="170" fill="url(#grassg)"/>
+  <!-- mowing arcs -->
+  <ellipse cx="600" cy="418" rx="250" ry="135" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="20"/>
+  <!-- markings -->
+  <ellipse cx="600" cy="418" rx="302" ry="162" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2.5"/>
+  <line x1="600" y1="258" x2="600" y2="578" stroke="rgba(255,255,255,.5)" stroke-width="2.5"/>
+  <ellipse cx="600" cy="418" rx="66" ry="36" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="2.5"/>
+  <circle cx="600" cy="418" r="3" fill="rgba(255,255,255,.6)"/>
+  <ellipse cx="372" cy="418" rx="30" ry="46" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="2"/>
+  <ellipse cx="828" cy="418" rx="30" ry="46" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="2"/>
+  <!-- floodlight glows around the roof rim (modern, no pylons) -->
+  <g>
+    <circle cx="600" cy="150" r="46" fill="url(#lightglow)"/>
+    <circle cx="300" cy="205" r="40" fill="url(#lightglow)"/>
+    <circle cx="900" cy="205" r="40" fill="url(#lightglow)"/>
+    <circle cx="150" cy="380" r="36" fill="url(#lightglow)"/>
+    <circle cx="1050" cy="380" r="36" fill="url(#lightglow)"/>
+    <circle cx="360" cy="630" r="34" fill="url(#lightglow)"/>
+    <circle cx="840" cy="630" r="34" fill="url(#lightglow)"/>
+  </g>
+</svg>
+<div class="cap">GenAI Football · Stadium View</div>
+</div>
 <div class="pitch"></div><div class="pbox l"></div><div class="pbox r"></div>
 <div class="overlay"></div><div class="ball">⚽</div>
 
@@ -724,7 +794,8 @@ function videoBlock(report){
 async function post(url, fd, btn, label, err){
   btn.disabled=true; const old=btn.textContent; btn.textContent='Working…';
   try{ const r=await fetch(url,{method:'POST',body:fd}); const d=await r.json();
-    if(!r.ok){ err.textContent=d.error||'Error'; return null; } return d; }
+    if(!r.ok){ err.textContent=d.error||'Error'; return null; }
+    document.body.classList.add('bg-pitch'); return d; }
   catch(e){ err.textContent='Request failed: '+e; return null; }
   finally{ btn.disabled=false; btn.textContent=old; }
 }
@@ -796,6 +867,7 @@ async function runValidation(){
   try{
     const r=await fetch('/validation'); const d=await r.json();
     if(!r.ok){ err.textContent=d.error||'Error'; return; }
+    document.body.classList.add('bg-pitch');
     const m=d.metrics;
     let h='<div class="metrics">';
     h+=`<div class="metric"><div class="big">${(m.role_acc*100).toFixed(0)}%</div><div class="lbl">Role accuracy (${m.n} players)</div></div>`;
