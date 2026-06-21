@@ -651,7 +651,10 @@ Optional Video signal: OpenCV motion analysis ─▶ composure score</div>
       <div class="card">
         <label>Match commentary</label>
         <textarea id="p_commentary" placeholder="Paste commentary, or load the demo..."></textarea>
-        <div class="chips"><span class="chip" onclick="loadSample('penalty_demo','p_commentary')">Load PSG–Arsenal demo</span></div>
+        <div class="chips">
+          <span class="chip" onclick="loadSample('penalty_demo','p_commentary')">Load PSG–Arsenal demo</span>
+          <span class="chip" onclick="loadSample('ileague_commentary','p_commentary')">Load REAL I-League match</span>
+        </div>
         <label style="margin-top:10px;">…or upload commentary (.txt)</label>
         <input type="file" id="p_commentary_file" accept=".txt"/>
       </div>
@@ -660,7 +663,7 @@ Optional Video signal: OpenCV motion analysis ─▶ composure score</div>
         <input type="file" id="p_videos" accept="video/*" multiple/>
         <div class="hint">Name clips after players, e.g. <b>Havertz.mp4</b>, to read composure.</div>
         <label style="margin-top:14px;">Filter to team (optional)</label>
-        <select id="p_team"><option value="">All players</option><option>PSG</option><option>Arsenal</option></select>
+        <select id="p_team"><option value="">All players</option><option>PSG</option><option>Arsenal</option><option>Indian Arrows</option><option>Real Kashmir</option></select>
         <button class="go" id="p_go" onclick="runPenalty()">Get penalty list</button>
         <div id="p_err" class="err"></div>
       </div>
@@ -704,6 +707,8 @@ Optional Video signal: OpenCV motion analysis ─▶ composure score</div>
         <label>Commentary / transcript</label>
         <textarea id="d_commentary" placeholder="Paste commentary, or load a sample..."></textarea>
         <div class="chips">
+          <span class="chip" onclick="loadSample('ileague_commentary','d_commentary')">Load REAL I-League match</span>
+          <span class="chip" onclick="loadSample('ileague_roster','d_roster')">Load I-League roster</span>
           <span class="chip" onclick="loadSample('isl_scout','d_commentary')">Load ISL test match</span>
           <span class="chip" onclick="loadSample('isl_roster','d_roster')">Load ISL roster</span>
         </div>

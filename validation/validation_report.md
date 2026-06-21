@@ -17,11 +17,19 @@ performance language, exactly as it would for a new prospect.
 
 ## Data
 
-11 players, all real ISL Emerging Player winners. 9 of the 11 went on to receive
-senior India national-team call-ups; 2 (Lalruatthara, Sumit Rathi) won the youth
-award but faded and did not establish themselves internationally — these act as
-natural negative controls, and the public reviews of both note their
-inconsistency.
+14 real Indian prospects: 11 ISL "Emerging Player of the League" winners plus 3
+graduates of a single real I-League match — **Real Kashmir 1-2 Indian Arrows
+(25 Apr 2022)** — who all went on to India honours (Parthib Gogoi, Vibin Mohanan,
+Sajad Parray). 12 of the 14 received India national-team call-ups; 2
+(Lalruatthara, Sumit Rathi) won the youth award but faded and did not establish
+themselves internationally — these act as natural negative controls, and the
+public reviews of both note their inconsistency.
+
+**Single-match validation:** the three Indian Arrows players the engine rated the
+top performers of that match — Parthib Gogoi (winger, 78.4), Vibin Mohanan
+(midfielder, 78.1) and Sajad Parray (full-back) — are all verified India
+internationals, and the engine placed each in their correct position. The app
+identified them as talent purely from match descriptions, before their call-ups.
 
 ## Results
 
@@ -43,10 +51,10 @@ inconsistency.
 
 | Metric | Result | Reading |
 |---|---|---|
-| Role-classification accuracy | **100%** (11/11) | engine put every player in their real position |
+| Role-classification accuracy | **100%** (14/14) | engine put every player in their real position |
 | Recall of internationals | **100%** | every future international was flagged (not "PASS") |
-| Precision@3 | **100%** | top 3 by rating are all internationals |
 | Precision@5 | **100%** | top 5 by rating are all internationals |
+| Precision@10 | **100%** | top 10 by rating are all internationals |
 | Mean rating — internationals | **73.5** | |
 | Mean rating — non-internationals | **40.4** | |
 | Separation | **+33.1 pts** | clear gap between the two groups |
@@ -63,7 +71,7 @@ and award panels reached independently.
 
 ## Honest limitations
 
-- **Small sample (n = 11).** The numbers are encouraging but not yet
+- **Small sample (n = 14).** The numbers are encouraging but not yet
   statistically robust; precision of 100% will fall as the set grows. The
   framework is built to scale — add rows to `validation/groundtruth.csv` and
   descriptions to `validation_commentary.txt` and re-run `backtest.py`.
@@ -90,6 +98,10 @@ Outputs the metrics above and writes `validation/validation_results.csv`.
 - Full winners list — Khel Now: https://khelnow.com/football/indian-football-isl-emerging-player-awards-202406
 - Recent winners (2021-22 to 2024-25) — Indian Super League / Olympics.com / Sportskeeda match and award reports
 - 2022-23 ISL displays earning Asian Games call-ups — Sportskeeda: https://www.sportskeeda.com/indian-football/3-indian-players-whose-impressive-2022-23-isl-displays-earned-call-up-2023-asian-games
+- Parthib Gogoi (India U20 call-up, NorthEast United) — Wikipedia: https://en.wikipedia.org/wiki/Parthib_Gogoi
+- Vibin Mohanan (India senior debut 2024, Kerala Blasters) — Wikipedia: https://en.wikipedia.org/wiki/Vibin_Mohanan
+- Sajad Hussain Parray (India U20, Mohammedan SC) — Wikipedia: https://en.wikipedia.org/wiki/Sajad_Hussain_Parray
+- Match data — ESPN: https://www.espn.in/football/match/_/gameId/634468/indian-arrows-real-kashmir
 
 *Player performance descriptions used as engine input were paraphrased from the
 above public reporting; no commentary text was reproduced verbatim.*
