@@ -25,6 +25,7 @@ from scouting_engine import (ScoutingEngine, ROLE_NAMES, ROLE_WEIGHTS,
                              generate_improvement_plan)
 from backtest import run_backtest
 import development_sim
+import llm_insights
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 STATS_PATH = os.path.join(BASE, "player_penalty_stats.csv")
@@ -220,6 +221,7 @@ def analyze_development(commentary, roster=None, engine=None):
             name, prof.attributes, sents, prof.role_rating, prof.verdict, prof.potential_flag)
         dev["best_role"] = prof.best_role
         dev["role_name"] = ROLE_NAMES.get(prof.best_role, prof.best_role)
+        dev["attributes"] = prof.attributes
         devs.append(dev)
     devs.sort(key=lambda d: (-len(d["mistakes"]), -d["ceiling"]["gap"]))
     return {"players": devs, "team_strategy": development_sim.team_strategy(devs)}
@@ -312,6 +314,51 @@ def plan():
     return jsonify(analyze_plans(commentary, role=role, roster=roster,
                                  engine=build_scout_engine(),
                                  weak_threshold=_f("weak_threshold", 58)))
+
+
+@app.route("/insight", methods=["POST"])
+def insight():
+    """Cross-continent development insight for one player (LLM if configured)."""
+    data = request.get_json(silent=True) or {}
+    player = (data.get("player") or "Player").strip()
+    role = (data.get("role") or "player").strip()
+    attributes = data.get("attributes") or {}
+    # ensure numeric
+    attributes = {k: float(v) for k, v in attributes.items()
+                  if isinstance(v, (int, float)) or str(v).replace(".", "", 1).isdigit()}
+    weaknesses = data.get("weaknesses") or []
+    strengths = data.get("strengths") or []
+    out = llm_insights.continental_insight(player, role, attributes,
+                                           weaknesses=weaknesses, strengths=strengths)
+    return jsonify(out)
+
+
+@app.route("/transcribe", methods=["POST"])
+def transcribe():
+    """Transcribe an uploaded match video/audio to text (Whisper)."""
+    f = request.files.get("media")
+    if not f or not f.filename:
+        return jsonify({"error": "No media file uploaded."}), 400
+    language = (request.form.get("language") or "").strip() or None
+    tmpdir = tempfile.mkdtemp(prefix="ff_media_")
+    path = os.path.join(tmpdir, os.path.basename(f.filename))
+    f.save(path)
+    try:
+        from transcription import transcribe as whisper_transcribe
+        text = whisper_transcribe(path, language=language, translate_to_english=True, save=False)
+        return jsonify({"text": text, "chars": len(text)})
+    except Exception as e:
+        return jsonify({
+            "error": "Transcription needs Whisper + ffmpeg installed on the server. "
+                     "Run: pip install openai-whisper (and install ffmpeg). "
+                     f"[{type(e).__name__}: {e}]"
+        }), 503
+
+
+@app.route("/llm_status")
+def llm_status():
+    return jsonify({"llm": "OpenAI configured" if llm_insights.llm_configured()
+                    else "offline knowledge base (set OPENAI_API_KEY to enable OpenAI)"})
 
 
 @app.route("/develop", methods=["POST"])
@@ -484,6 +531,10 @@ INDEX_HTML = r"""
   .mtext b.w { color:var(--red); } .mtext b.g { color:var(--green); }
   .mtext .row { margin:3px 0; font-size:13.5px; }
   .teambox { background:rgba(55,162,255,.08); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:14px; }
+  .insightcard { background:rgba(40,209,124,.07); border:1px solid var(--line); border-radius:10px; padding:14px; margin-top:8px; font-size:13.5px; line-height:1.5; }
+  .insightcard .imode { float:right; font-size:11px; color:var(--mut); }
+  .ifocus { margin-top:6px; } .ifocus b { color:var(--gold); }
+  .icult { margin-top:10px; padding-top:8px; border-top:1px solid var(--line); font-size:12.5px; color:var(--mut); }
 </style>
 </head>
 <body>
@@ -647,6 +698,7 @@ Optional Video signal: OpenCV motion analysis ─▶ composure score</div>
     <div class="tab" id="tab-scout" onclick="showTab('scout')">Scouting</div>
     <div class="tab" id="tab-plan" onclick="showTab('plan')">Improvement Plan</div>
     <div class="tab" id="tab-dev" onclick="showTab('dev')">Development Lab</div>
+    <div class="tab" id="tab-tr" onclick="showTab('tr')">Transcribe</div>
     <div class="tab" id="tab-val" onclick="showTab('val')">Validation</div>
   </div>
 
@@ -662,6 +714,8 @@ Optional Video signal: OpenCV motion analysis ─▶ composure score</div>
         </div>
         <label style="margin-top:10px;">…or upload commentary (.txt)</label>
         <input type="file" id="p_commentary_file" accept=".txt"/>
+        <label style="margin-top:10px;">…or transcribe a video/audio into this box</label>
+        <input type="file" accept="video/*,audio/*" onchange="transcribeInto(this,'p_commentary')"/>
       </div>
       <div class="card">
         <label>Player video footage (optional)</label>
@@ -689,6 +743,8 @@ Optional Video signal: OpenCV motion analysis ─▶ composure score</div>
         </div>
         <label style="margin-top:10px;">…or upload transcript (.txt)</label>
         <input type="file" id="s_commentary_file" accept=".txt"/>
+        <label style="margin-top:10px;">…or transcribe a video/audio into this box</label>
+        <input type="file" accept="video/*,audio/*" onchange="transcribeInto(this,'s_commentary')"/>
       </div>
       <div class="card">
         <label>Scout for position</label>
@@ -714,6 +770,8 @@ Optional Video signal: OpenCV motion analysis ─▶ composure score</div>
           <span class="chip" onclick="loadMatch('ileague_commentary','d_commentary','ileague_roster','d_roster')">Load REAL I-League match + roster</span>
           <span class="chip" onclick="loadMatch('isl_scout','d_commentary','isl_roster','d_roster')">Load ISL test match + roster</span>
         </div>
+        <label style="margin-top:10px;">…or transcribe a video/audio into this box</label>
+        <input type="file" accept="video/*,audio/*" onchange="transcribeInto(this,'d_commentary')"/>
       </div>
       <div class="card">
         <label>Position context</label>
@@ -737,6 +795,8 @@ Optional Video signal: OpenCV motion analysis ─▶ composure score</div>
           <span class="chip" onclick="loadMatch('ileague_commentary','g_commentary','ileague_roster','g_roster')">Load REAL I-League match + roster</span>
           <span class="chip" onclick="loadMatch('isl_scout','g_commentary','isl_roster','g_roster')">Load ISL test match + roster</span>
         </div>
+        <label style="margin-top:10px;">…or transcribe a video/audio into this box</label>
+        <input type="file" accept="video/*,audio/*" onchange="transcribeInto(this,'g_commentary')"/>
       </div>
       <div class="card">
         <label>Roster (optional, one player per line)</label>
@@ -747,6 +807,33 @@ Optional Video signal: OpenCV motion analysis ─▶ composure score</div>
       </div>
     </div>
     <div id="g_out" style="margin-top:18px;"></div>
+  </div>
+
+  <!-- TRANSCRIBE -->
+  <div id="panel-tr" class="hidden">
+    <div class="grid">
+      <div class="card">
+        <label>Match video or audio</label>
+        <input type="file" id="t_media" accept="video/*,audio/*"/>
+        <div class="hint">Cheaper than full video analysis: this transcribes the <b>commentary audio</b>
+          (Whisper) into text you can run through any tab. Supports Hindi / regional languages.</div>
+        <label style="margin-top:12px;">Language (optional, e.g. hi, bn, ta)</label>
+        <input type="text" id="t_lang" placeholder="auto-detect"/>
+        <button class="go" id="t_go" onclick="runTranscribe()">Transcribe → text</button>
+        <div id="t_err" class="err"></div>
+        <div class="hint" style="margin-top:8px;">Needs <code>openai-whisper</code> + ffmpeg installed on the server.</div>
+      </div>
+      <div class="card">
+        <label>Transcript</label>
+        <textarea id="t_out" placeholder="Transcript appears here…"></textarea>
+        <div class="chips" id="t_send" style="display:none;">
+          <span class="chip" onclick="sendTranscript('p_commentary','pen')">→ Penalty</span>
+          <span class="chip" onclick="sendTranscript('s_commentary','scout')">→ Scouting</span>
+          <span class="chip" onclick="sendTranscript('d_commentary','plan')">→ Improvement</span>
+          <span class="chip" onclick="sendTranscript('g_commentary','dev')">→ Development</span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- VALIDATION -->
@@ -763,7 +850,7 @@ Optional Video signal: OpenCV motion analysis ─▶ composure score</div>
 
 <script>
 function showTab(t){
-  ['pen','scout','plan','dev','val'].forEach(x=>{
+  ['pen','scout','plan','dev','tr','val'].forEach(x=>{
     document.getElementById('tab-'+x).classList.toggle('active', x===t);
     document.getElementById('panel-'+x).classList.toggle('hidden', x!==t);
   });
@@ -776,6 +863,59 @@ async function loadMatch(commName, commTarget, rosterName, rosterTarget){
   await loadSample(commName, commTarget);
   await loadSample(rosterName, rosterTarget);
 }
+/* ---- video/audio transcription ---- */
+async function transcribeInto(input, targetId){
+  if(!input.files || !input.files[0]) return;
+  const ta=document.getElementById(targetId); const prev=ta.value; ta.value='Transcribing… (this can take a minute)';
+  const fd=new FormData(); fd.append('media', input.files[0]);
+  try{ const r=await fetch('/transcribe',{method:'POST',body:fd}); const d=await r.json();
+    ta.value = r.ok ? d.text : (prev + '\n[Transcribe unavailable: '+(d.error||'failed')+']'); }
+  catch(e){ ta.value=prev; alert('Transcribe failed: '+e); }
+  finally{ input.value=''; }
+}
+async function runTranscribe(){
+  const err=document.getElementById('t_err'); err.textContent='';
+  const inp=document.getElementById('t_media');
+  if(!inp.files || !inp.files[0]){ err.textContent='Choose a video or audio file.'; return; }
+  const fd=new FormData(); fd.append('media', inp.files[0]);
+  fd.append('language', document.getElementById('t_lang').value);
+  const btn=document.getElementById('t_go'); btn.disabled=true; const old=btn.textContent; btn.textContent='Transcribing…';
+  try{ const r=await fetch('/transcribe',{method:'POST',body:fd}); const d=await r.json();
+    if(!r.ok){ err.textContent=d.error||'Error'; return; }
+    document.getElementById('t_out').value=d.text;
+    document.getElementById('t_send').style.display='flex';
+    document.body.classList.add('bg-pitch');
+  }catch(e){ err.textContent='Request failed: '+e; }
+  finally{ btn.disabled=false; btn.textContent=old; }
+}
+function sendTranscript(targetId, tab){
+  document.getElementById(targetId).value=document.getElementById('t_out').value;
+  showTab(tab);
+}
+/* ---- cross-continent AI insight ---- */
+window._scout=[]; window._dev=[];
+async function fetchInsight(player, role, attributes, strengths, weaknesses, boxId){
+  const box=document.getElementById(boxId);
+  box.innerHTML='<div class="insightcard"><span style="color:var(--mut)">Analysing cross-continent coaching strategies…</span></div>';
+  try{
+    const r=await fetch('/insight',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({player,role,attributes,strengths,weaknesses})});
+    const d=await r.json();
+    let h='<div class="insightcard"><div class="imode">'+(d.mode||d.source||'')+'</div>';
+    h+='<h4 style="margin:2px 0 6px;">Cross-continent development — '+player+'</h4>';
+    if(d.llm_text){ h+='<div>'+d.llm_text.replace(/\n/g,'<br>')+'</div>'; }
+    else {
+      h+='<div style="margin-bottom:6px;">'+(d.summary||'')+'</div>';
+      (d.focus_items||[]).forEach(it=>{ h+='<div class="ifocus"><b>'+it.attribute+'</b> → study '+(it.study||[]).join(', ')+': '+it.recommendation+'</div>'; });
+    }
+    if(d.cultures&&d.cultures.length){ h+='<div class="icult">'+d.cultures.map(c=>'<b>'+c.name+':</b> '+c.philosophy).join('<br>')+'</div>'; }
+    h+='</div>'; box.innerHTML=h;
+  }catch(e){ box.innerHTML='<div class="insightcard" style="color:var(--red)">Insight failed: '+e+'</div>'; }
+}
+function scoutInsight(i){ const p=window._scout[i]; if(!p) return;
+  fetchInsight(p.player, p.best_role||'player', p.attributes||{}, p.strengths||[], p.weaknesses||[], 's_insight'); }
+function devInsight(i){ const p=window._dev[i]; if(!p) return;
+  fetchInsight(p.player, p.best_role||'player', p.attributes||{}, [], [], 'g_insight_'+i); }
 function openModal(id){ document.getElementById('modal-'+id).classList.add('open'); }
 function closeModal(id){ document.getElementById('modal-'+id).classList.remove('open');
   if(id==='opt') document.getElementById('opt_applied').textContent='Settings applied ✓ — re-run a tab to compare.'; }
@@ -849,11 +989,13 @@ async function runScout(){
   h+= d.signings.length? ('Recommended to sign: '+d.signings.join(', ')+'. ') : 'No outright signings — development options below. ';
   if(d.prospects.length) h+='Prospects: '+d.prospects.join(', ')+'.';
   h+=' <span style="color:var(--mut);font-size:12px;">Model: '+(d.model_used||'offline')+'</span></div>';
-  h+='<div class="card"><table><thead><tr><th>#</th><th>Player</th><th>Role fit</th><th>Verdict</th><th>Strengths</th><th>To improve</th></tr></thead><tbody>';
+  window._scout=d.shortlist;
+  h+='<div class="card"><table><thead><tr><th>#</th><th>Player</th><th>Role fit</th><th>Verdict</th><th>Strengths</th><th>To improve</th><th>Develop</th></tr></thead><tbody>';
   d.shortlist.forEach((p,i)=>{ h+=`<tr><td>${i+1}</td><td>${p.player} ${p.potential_flag?'<span class="star">★</span>':''}</td>
     <td><div style="display:flex;align-items:center;gap:8px;"><div class="bar"><span style="width:${p.role_rating}%"></span></div><b>${p.role_rating}</b></div></td>
-    <td><span class="pill ${p.verdict}">${p.verdict}</span></td><td>${(p.strengths||[]).join(', ')||'-'}</td><td>${(p.weaknesses||[]).join(', ')||'-'}</td></tr>`; });
-  h+='</tbody></table>'+videoBlock(d.video_report)+'</div>';
+    <td><span class="pill ${p.verdict}">${p.verdict}</span></td><td>${(p.strengths||[]).join(', ')||'-'}</td><td>${(p.weaknesses||[]).join(', ')||'-'}</td>
+    <td><span class="simbtn good" onclick="scoutInsight(${i})">🌍 AI insight</span></td></tr>`; });
+  h+='</tbody></table>'+videoBlock(d.video_report)+'</div><div id="s_insight" style="margin-top:12px;"></div>';
   document.getElementById('s_out').innerHTML=h;
 }
 
@@ -971,6 +1113,7 @@ async function runDev(){
   h+='<div class="teambox"><b>Team strategy.</b> '+ts.headline+'<ul>';
   ts.notes.forEach(n=> h+=`<li><b>${n.area}</b>${n.count?' ×'+n.count:''}: ${n.recommendation}</li>`);
   h+='</ul></div>';
+  window._dev=d.players;
   d.players.forEach((p,idx)=>{
     const cg=p.ceiling, bandkey=cg.band.split(' ')[0];
     h+=`<div class="devcard"><div class="devhead">
@@ -979,7 +1122,9 @@ async function runDev(){
       <span class="ceil">${p.role_name} · now ${cg.current} → ceiling ${cg.ceiling}</span>
       <span class="band ${bandkey}">${cg.band}</span></div>
       <div class="growbar"><div class="cur" style="width:${cg.current}%"></div><div class="cap" style="left:${cg.ceiling}%"></div></div>
-      <div style="font-size:13px;color:#cdd8ee;margin-top:8px;">${p.unlock}</div>`;
+      <div style="font-size:13px;color:#cdd8ee;margin-top:8px;">${p.unlock}</div>
+      <div style="margin-top:8px;"><span class="simbtn good" onclick="devInsight(${idx})">🌍 Cross-continent AI insight</span></div>
+      <div id="g_insight_${idx}"></div>`;
     if(!p.mistakes.length){ h+=`<div style="font-size:13px;color:var(--green);margin-top:8px;">No clear mistakes flagged — maintain standards and add minutes.</div>`; }
     p.mistakes.forEach((m,mi)=>{
       h+=`<div class="mistake">

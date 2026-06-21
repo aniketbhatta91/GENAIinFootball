@@ -5,9 +5,14 @@ werkzeug>=3.0.1
 numpy>=1.24.0
 opencv-python-headless>=4.8.0   # video footage processing (headless = server-safe)
 
+# --- Optional: OpenAI LLM insights (cross-continent development) ---
+# Needs OPENAI_API_KEY env var at runtime. Without it, the app uses the built-in
+# offline continental-strategies knowledge base instead.
+# openai>=1.30.0
+
 # --- Optional: BERT/RoBERTa sentiment + Whisper transcription ---
 # Heavy (~1GB+); the app runs fine without them (falls back to the offline
-# rule-based analyzer). Uncomment for local use; leave commented for light deploys.
+# rule-based analyzer / disables transcription). Uncomment for local use.
 # transformers>=4.40.0
 # torch>=2.6.0
 # scikit-learn>=1.4.0
