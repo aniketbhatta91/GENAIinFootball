@@ -678,10 +678,9 @@ Optional Video signal: OpenCV motion analysis ─▶ composure score</div>
         <label>Commentary / match transcript</label>
         <textarea id="s_commentary" placeholder="Paste commentary or transcript, or load a sample..."></textarea>
         <div class="chips">
-          <span class="chip" onclick="loadSample('isl_scout','s_commentary')">Load ISL test match</span>
+          <span class="chip" onclick="loadMatch('ileague_commentary','s_commentary','ileague_roster','s_roster')">Load REAL I-League match + roster</span>
+          <span class="chip" onclick="loadMatch('isl_scout','s_commentary','isl_roster','s_roster')">Load ISL test match + roster</span>
           <span class="chip" onclick="loadSample('real_isl','s_commentary')">Load REAL ISL Cup Final</span>
-          <span class="chip" onclick="loadSample('ileague_commentary','s_commentary')">Load REAL I-League match</span>
-          <span class="chip" onclick="loadSample('ileague_roster','s_roster')">Load I-League roster</span>
         </div>
         <label style="margin-top:10px;">…or upload transcript (.txt)</label>
         <input type="file" id="s_commentary_file" accept=".txt"/>
@@ -707,10 +706,8 @@ Optional Video signal: OpenCV motion analysis ─▶ composure score</div>
         <label>Commentary / transcript</label>
         <textarea id="d_commentary" placeholder="Paste commentary, or load a sample..."></textarea>
         <div class="chips">
-          <span class="chip" onclick="loadSample('ileague_commentary','d_commentary')">Load REAL I-League match</span>
-          <span class="chip" onclick="loadSample('ileague_roster','d_roster')">Load I-League roster</span>
-          <span class="chip" onclick="loadSample('isl_scout','d_commentary')">Load ISL test match</span>
-          <span class="chip" onclick="loadSample('isl_roster','d_roster')">Load ISL roster</span>
+          <span class="chip" onclick="loadMatch('ileague_commentary','d_commentary','ileague_roster','d_roster')">Load REAL I-League match + roster</span>
+          <span class="chip" onclick="loadMatch('isl_scout','d_commentary','isl_roster','d_roster')">Load ISL test match + roster</span>
         </div>
       </div>
       <div class="card">
@@ -732,10 +729,8 @@ Optional Video signal: OpenCV motion analysis ─▶ composure score</div>
         <label>Commentary / transcript</label>
         <textarea id="g_commentary" placeholder="Paste commentary, or load a sample..."></textarea>
         <div class="chips">
-          <span class="chip" onclick="loadSample('ileague_commentary','g_commentary')">Load I-League match (real)</span>
-          <span class="chip" onclick="loadSample('ileague_roster','g_roster')">Load I-League roster</span>
-          <span class="chip" onclick="loadSample('isl_scout','g_commentary')">Load ISL test match</span>
-          <span class="chip" onclick="loadSample('isl_roster','g_roster')">Load ISL roster</span>
+          <span class="chip" onclick="loadMatch('ileague_commentary','g_commentary','ileague_roster','g_roster')">Load REAL I-League match + roster</span>
+          <span class="chip" onclick="loadMatch('isl_scout','g_commentary','isl_roster','g_roster')">Load ISL test match + roster</span>
         </div>
       </div>
       <div class="card">
@@ -771,6 +766,10 @@ function showTab(t){
 async function loadSample(name, targetId){
   try{ const r=await fetch('/sample?name='+name); const d=await r.json();
     if(d.text!==undefined) document.getElementById(targetId).value=d.text; }catch(e){}
+}
+async function loadMatch(commName, commTarget, rosterName, rosterTarget){
+  await loadSample(commName, commTarget);
+  await loadSample(rosterName, rosterTarget);
 }
 function openModal(id){ document.getElementById('modal-'+id).classList.add('open'); }
 function closeModal(id){ document.getElementById('modal-'+id).classList.remove('open');

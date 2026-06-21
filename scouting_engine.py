@@ -87,7 +87,23 @@ ROLE_NAMES = {
 STOPWORDS = {"The", "A", "It", "Now", "And", "But", "In", "Min", "From", "To",
              "He", "She", "His", "Her", "That", "This", "There", "They", "We",
              "Half", "Full", "Time", "Goal", "Match", "Both", "Up", "On", "At",
-             "ISL", "FC", "United", "City", "Super", "League", "First", "Second"}
+             "ISL", "FC", "United", "City", "Super", "League", "First", "Second",
+             # commentary noise
+             "Goal", "Penalty", "Substitution", "Assisted", "Yellow", "Red",
+             "Card", "Shot", "Offside", "Corner", "Foul", "Free", "Kick",
+             "Full", "Second", "First", "Bad", "Clinical", "Strong", "Sharp",
+             # team-name first words (so "Indian Arrows", "Real Kashmir" etc.
+             # are not mistaken for players in auto-detect)
+             "Indian", "Arrows", "Real", "Kashmir", "Mohun", "Bagan", "Bengaluru",
+             "Kerala", "Blasters", "NorthEast", "Mumbai", "Chennaiyin", "Jamshedpur",
+             "Odisha", "Punjab", "East", "Bengal", "Inter", "Kashi", "Goa",
+             "Hyderabad", "Diamond", "Harbour", "Shillong", "Lajong", "Sreenidi",
+             "Deccan", "Rajasthan", "Chanmari", "Dempo", "Churchill", "Mohammedan"}
+
+# explicit team names to exclude even when they pass the first-word test
+TEAM_NAMES = {"indian arrows", "real kashmir", "mohun bagan", "bengaluru fc",
+              "kerala blasters", "northeast united", "mumbai city", "east bengal",
+              "inter kashi", "fc goa", "real madrid"}
 
 
 def strip_accents(text: str) -> str:
@@ -146,8 +162,11 @@ class ScoutingEngine:
         # auto-detect capitalised names
         counts: Dict[str, List[str]] = {}
         for s in sentences:
-            for nm in re.findall(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b", s):
-                if nm.split()[0] in STOPWORDS:
+            for nm in re.findall(r"\b([A-ZÀ-Ý][a-zà-ÿ]+(?:\s+[A-ZÀ-Ý][a-zà-ÿ]+)?)\b", s):
+                words = nm.split()
+                if words[0] in STOPWORDS or words[-1] in STOPWORDS:
+                    continue
+                if nm.lower() in TEAM_NAMES:
                     continue
                 counts.setdefault(nm, []).append(s.strip())
         return {n: v for n, v in counts.items() if len(v) >= min_mentions}
