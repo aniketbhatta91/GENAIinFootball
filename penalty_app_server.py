@@ -1146,7 +1146,22 @@ async function runDev(){
       <div style="font-size:13px;color:#cdd8ee;margin-top:8px;">${p.unlock}</div>
       <div style="margin-top:8px;"><span class="simbtn good" onclick="devInsight(${idx})">🌍 Cross-continent AI insight</span></div>
       <div id="g_insight_${idx}"></div>`;
-    if(!p.mistakes.length){ h+=`<div style="font-size:13px;color:var(--green);margin-top:8px;">No clear mistakes flagged — maintain standards and add minutes.</div>`; }
+    if(!p.mistakes.length){
+      if(p.focus){
+        h+=`<div class="mistake">
+          <div class="simwrap">${pitchSVG()}
+            <div class="simbtns"><span class="simbtn good" onclick="playFrom(this,'${p.focus.scenario}','better')">▶ Recommended approach</span></div>
+            <div class="simlabel"></div>
+          </div>
+          <div class="mtext">
+            <div class="row"><b class="g">Development focus: ${p.focus.attribute} (${p.focus.score})</b></div>
+            <div class="row">${p.focus.better_approach}</div>
+            <div class="row" style="color:var(--mut);"><b>Drill:</b> ${p.focus.drill}</div>
+          </div></div>`;
+      } else {
+        h+=`<div style="font-size:13px;color:var(--green);margin-top:8px;">No clear development data in this commentary.</div>`;
+      }
+    }
     p.mistakes.forEach((m,mi)=>{
       h+=`<div class="mistake">
         <div class="simwrap">${pitchSVG()}

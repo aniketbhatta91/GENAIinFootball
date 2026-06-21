@@ -75,6 +75,28 @@ MISTAKE_TYPES = {
 
 MINUTE_RE = re.compile(r"min\s*(\d+)", re.I)
 
+# map any attribute to the coaching scenario that best develops it
+ATTR_TO_TYPE = {
+    "finishing": "finishing", "positioning": "positioning", "defending": "positioning",
+    "composure": "control", "passing": "passing", "creativity": "passing",
+    "physical": "duel", "dribbling": "control", "pace": "positioning",
+    "workrate": "positioning", "goalkeeping": "control",
+}
+
+
+def focus_area(attributes):
+    """Pick the weakest attribute that maps to a scenario, so every player gets a
+    'recommended approach' simulation even when no specific mistake was flagged."""
+    if not attributes:
+        return None
+    for attr, val in sorted(attributes.items(), key=lambda x: x[1]):
+        t = ATTR_TO_TYPE.get(attr)
+        if t:
+            cfg = MISTAKE_TYPES[t]
+            return {"attribute": attr, "score": val, "scenario": cfg["scenario"],
+                    "better_approach": cfg["better"], "drill": cfg["drill"]}
+    return None
+
 
 def detect_mistakes(sentences):
     """Return a list of mistake dicts found in the player's commentary."""
@@ -143,8 +165,9 @@ def player_development(name, attributes, sentences, current_rating,
         "player": name, "current_rating": current_rating, "verdict": verdict,
         "potential_flag": potential_flag, "ceiling": ceiling,
         "mistakes": mistakes, "unlock": unlock,
+        "focus": focus_area(attributes),
         "summary": (f"{len(mistakes)} correctable moment(s) identified."
-                    if mistakes else "No clear mistakes flagged in this commentary.")
+                    if mistakes else "No specific mistakes flagged — showing the key development area.")
     }
 
 
