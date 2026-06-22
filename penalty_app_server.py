@@ -23,10 +23,8 @@ from flask import Flask, request, jsonify, render_template_string
 from penalty_fusion_engine import PenaltyFusionEngine
 from scouting_engine import (ScoutingEngine, ROLE_NAMES, ROLE_WEIGHTS,
                              generate_improvement_plan)
-from backtest import run_backtest
 import development_sim
 import llm_insights
-import penalty_shootouts
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 STATS_PATH = os.path.join(BASE, "player_penalty_stats.csv")
@@ -151,25 +149,44 @@ def read_commentary(form_key="commentary", file_key="commentary_file"):
 
 
 # ───────────────────────── analyses ─────────────────────────
+NEUTRAL_PEN = {"team": "", "position": "", "pens_taken": "0", "pens_scored": "0",
+               "technique_rating": "55", "composure_rating": "55", "big_game_experience": "3"}
+
+
 def analyze_penalty(commentary, team=None, video_files=None, engine=None):
+    """Build the penalty-taker list from the PLAYERS IN THE ENTERED COMMENTARY.
+    Known players (in player_penalty_stats.csv) use their real stats; players the
+    app has never seen get neutral stats and are scored mainly on in-match
+    readiness from the commentary."""
     engine = engine or penalty_engine
-    video_files = video_files or []
     report = []
-    cmap = composure_map_from_videos(video_files, report)
+    cmap = composure_map_from_videos(video_files or [], report)
+
+    # CSV stats lookup (by full name and by surname)
     with open(STATS_PATH, newline="", encoding="utf-8") as f:
-        rows = list(csv.DictReader(f))
-    if team:
-        rows = [r for r in rows if r.get("team", "").lower() == team.lower()]
+        csv_rows = list(csv.DictReader(f))
+    by_name = {r["player"].strip().lower(): r for r in csv_rows}
+    by_surname = {r["player"].strip().lower().split()[-1]: r for r in csv_rows}
+
+    # detect the players actually mentioned in the commentary (team names filtered)
+    detected = scout_engine.detect_players(commentary, min_mentions=1)
+
     results = []
-    for r in rows:
-        key = r["player"].strip().lower()
-        m = next((vk for vk in cmap if vk in key or key.split()[-1] == vk), None)
-        if m:
-            r = dict(r)
-            r["composure_rating"] = round(0.5 * float(r.get("composure_rating", 50) or 50) + 0.5 * cmap[m], 1)
-        res = engine.score_player(r, commentary)
-        res["video_used"] = bool(m)
+    for name in detected:
+        key = name.strip().lower()
+        base = by_name.get(key) or by_surname.get(key.split()[-1])
+        row = dict(base) if base else dict(NEUTRAL_PEN, player=name)
+        row["player"] = name  # keep the name as written in the commentary
+        if team and row.get("team", "").lower() != team.lower():
+            continue
+        vk = next((k for k in cmap if k in key or key.split()[-1] == k), None)
+        if vk:
+            row["composure_rating"] = round(0.5 * float(row.get("composure_rating", 55) or 55) + 0.5 * cmap[vk], 1)
+        res = engine.score_player(row, commentary)
+        res["video_used"] = bool(vk)
+        res["known"] = bool(base)
         results.append(res)
+
     results.sort(key=lambda x: x["suitability"], reverse=True)
     return {"results": results, "video_report": report,
             "recommended_order": [p["player"] for p in results if p["category"] == "RECOMMENDED"]}
@@ -372,46 +389,13 @@ def develop():
     return jsonify(analyze_development(commentary, roster=roster, engine=build_scout_engine()))
 
 
-@app.route("/validation")
-def validation():
-    try:
-        rows, metrics = run_backtest(BASE)
-        return jsonify({"rows": rows, "metrics": metrics})
-    except Exception as e:
-        return jsonify({"error": f"Validation data not available: {e}"}), 500
-
-
-@app.route("/shootouts")
-def shootouts():
-    return jsonify({"matches": [{"id": m["id"], "name": m["name"]} for m in penalty_shootouts.SHOOTOUTS]})
-
-
-@app.route("/shootout")
-def shootout():
-    m = penalty_shootouts.get(request.args.get("id", ""))
-    if not m:
-        return jsonify({"error": "unknown match"}), 404
-    return jsonify({"name": m["name"], "result": m["result"],
-                    "text": penalty_shootouts.shootout_commentary(m)})
-
-
-@app.route("/evaluate")
-def evaluate_all():
-    """Accuracy across all three sections: scouting, development, penalty."""
-    try:
-        rows, sm = run_backtest(BASE)
-    except Exception as e:
-        return jsonify({"error": f"Evaluation data not available: {e}"}), 500
-    pen = penalty_shootouts.evaluate()
-    return jsonify({
-        "scouting": {"role_acc": sm["role_acc"], "p5": sm["p5"], "recall": sm["recall"], "n": sm["n"]},
-        "development": {"recall": sm["recall"], "mean_intl": sm["mean_intl"],
-                        "mean_non": sm["mean_non"], "separation": sm["separation"], "n": sm["n"]},
-        "penalty": {"pairwise": pen["pairwise_accuracy"], "scorer": pen["mean_scorer_readiness"],
-                    "misser": pen["mean_misser_readiness"], "n": pen["n_takers"],
-                    "matches": pen["matches"]},
-        "rows": rows,
-    })
+@app.route("/verify", methods=["POST"])
+def verify():
+    """Check via LLM whether each name is a real footballer. Returns
+    {name: 'real'|'unknown'|'unverified'}. 'unverified' when no LLM configured."""
+    data = request.get_json(silent=True) or {}
+    names = [n for n in (data.get("players") or []) if isinstance(n, str)][:40]
+    return jsonify({"results": llm_insights.verify_players(names)})
 
 
 # ───────────────────────── frontend ─────────────────────────
@@ -570,6 +554,8 @@ INDEX_HTML = r"""
   .insightcard .imode { float:right; font-size:11px; color:var(--mut); }
   .ifocus { margin-top:6px; } .ifocus b { color:var(--gold); }
   .icult { margin-top:10px; padding-top:8px; border-top:1px solid var(--line); font-size:12.5px; color:var(--mut); }
+  .notfound { font-size:11px; font-weight:700; color:var(--amber); background:rgba(245,176,66,.14);
+    border:1px solid rgba(245,176,66,.4); border-radius:999px; padding:1px 7px; white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -752,7 +738,6 @@ Optional video signal: OpenCV motion analysis ─▶ composure score</div>
     <div class="tab" id="tab-plan" onclick="showTab('plan')">Improvement Plan</div>
     <div class="tab" id="tab-dev" onclick="showTab('dev')">Development Lab</div>
     <div class="tab" id="tab-tr" onclick="showTab('tr')">Transcribe</div>
-    <div class="tab" id="tab-val" onclick="showTab('val')">Evaluate</div>
   </div>
 
   <!-- PENALTY -->
@@ -765,8 +750,6 @@ Optional video signal: OpenCV motion analysis ─▶ composure score</div>
           <span class="chip" onclick="loadSample('penalty_demo','p_commentary')">Load PSG–Arsenal demo</span>
           <span class="chip" onclick="loadSample('ileague_commentary','p_commentary')">Load REAL I-League match</span>
         </div>
-        <label style="margin-top:10px;">…or pick a real penalty shootout (10 matches)</label>
-        <select id="p_shootout" onchange="loadShootout()"><option value="">— select a shootout —</option></select>
         <label style="margin-top:10px;">…or upload commentary (.txt)</label>
         <input type="file" id="p_commentary_file" accept=".txt"/>
         <label style="margin-top:10px;">…or transcribe a video/audio into this box</label>
@@ -891,23 +874,12 @@ Optional video signal: OpenCV motion analysis ─▶ composure score</div>
     </div>
   </div>
 
-  <!-- VALIDATION -->
-  <div id="panel-val" class="hidden">
-    <div class="card">
-      <b>How accurately is the app performing?</b> Evaluates all three engines against real outcomes:
-      <b>Scouting</b> &amp; <b>Development</b> vs real India call-ups (ISL Emerging Player winners + Indian Arrows graduates),
-      and <b>Penalty</b> vs 10 real penalty shootouts (does it rank actual scorers above missers?).
-      <button class="go" id="v_go" onclick="runEvaluate()">Run full evaluation</button>
-      <div id="v_err" class="err"></div>
-    </div>
-    <div id="v_out" style="margin-top:18px;"></div>
-  </div>
 </div>
 
 <script>
 function showTab(t){
   document.body.classList.remove('bg-pitch');   // back to stadium view on every tab switch
-  ['pen','scout','plan','dev','tr','val'].forEach(x=>{
+  ['pen','scout','plan','dev','tr'].forEach(x=>{
     document.getElementById('tab-'+x).classList.toggle('active', x===t);
     document.getElementById('panel-'+x).classList.toggle('hidden', x!==t);
   });
@@ -919,17 +891,6 @@ async function loadSample(name, targetId){
 async function loadMatch(commName, commTarget, rosterName, rosterTarget){
   await loadSample(commName, commTarget);
   await loadSample(rosterName, rosterTarget);
-}
-async function populateShootouts(){
-  try{ const r=await fetch('/shootouts'); const d=await r.json();
-    const sel=document.getElementById('p_shootout'); if(!sel) return;
-    d.matches.forEach(m=>{ const o=document.createElement('option'); o.value=m.id; o.textContent=m.name; sel.appendChild(o); });
-  }catch(e){}
-}
-async function loadShootout(){
-  const id=document.getElementById('p_shootout').value; if(!id) return;
-  try{ const r=await fetch('/shootout?id='+id); const d=await r.json();
-    if(d.text!==undefined) document.getElementById('p_commentary').value=d.text; }catch(e){}
 }
 /* ---- video/audio transcription ---- */
 async function transcribeInto(input, targetId){
@@ -1038,11 +999,12 @@ async function runPenalty(){
   let h=''; if(d.recommended_order&&d.recommended_order.length)
     h+='<div class="order"><b>Suggested taker order:</b> '+d.recommended_order.map((n,i)=>(i+1)+'. '+n).join('   ')+'</div>';
   h+='<div class="card"><table><thead><tr><th>#</th><th>Player</th><th>Team</th><th>Suitability</th><th>Verdict</th><th>Pen record</th><th>Mental</th><th>Fatigue</th></tr></thead><tbody>';
-  d.results.forEach((p,i)=>{ h+=`<tr><td>${i+1}</td><td>${p.player} ${p.video_used?'<span class="vtag">●vid</span>':''}</td><td>${p.team}</td>
+  d.results.forEach((p,i)=>{ h+=`<tr><td>${i+1}</td><td><span class="pname" data-player="${p.player}">${p.player}</span> ${p.video_used?'<span class="vtag">●vid</span>':''}</td><td>${p.team||'—'}</td>
     <td><div style="display:flex;align-items:center;gap:8px;"><div class="bar"><span style="width:${p.suitability}%"></span></div><b>${p.suitability}</b></div></td>
     <td><span class="pill ${p.category}">${p.category}</span></td><td>${p.pen_record}</td><td>${p.mental_state}</td><td>${p.fatigue}</td></tr>`; });
   h+='</tbody></table>'+videoBlock(d.video_report)+'</div>';
   document.getElementById('p_out').innerHTML=h;
+  annotatePlayers('p_out');
 }
 
 async function runScout(){
@@ -1061,12 +1023,13 @@ async function runScout(){
   h+=' <span style="color:var(--mut);font-size:12px;">Model: '+(d.model_used||'offline')+'</span></div>';
   window._scout=d.shortlist;
   h+='<div class="card"><table><thead><tr><th>#</th><th>Player</th><th>Role fit</th><th>Verdict</th><th>Strengths</th><th>To improve</th><th>Develop</th></tr></thead><tbody>';
-  d.shortlist.forEach((p,i)=>{ h+=`<tr><td>${i+1}</td><td>${p.player} ${p.potential_flag?'<span class="star">★</span>':''}</td>
+  d.shortlist.forEach((p,i)=>{ h+=`<tr><td>${i+1}</td><td><span class="pname" data-player="${p.player}">${p.player}</span> ${p.potential_flag?'<span class="star">★</span>':''}</td>
     <td><div style="display:flex;align-items:center;gap:8px;"><div class="bar"><span style="width:${p.role_rating}%"></span></div><b>${p.role_rating}</b></div></td>
     <td><span class="pill ${p.verdict}">${p.verdict}</span></td><td>${(p.strengths||[]).join(', ')||'-'}</td><td>${(p.weaknesses||[]).join(', ')||'-'}</td>
     <td><span class="simbtn good" onclick="scoutInsight(${i})">🌍 AI insight</span></td></tr>`; });
   h+='</tbody></table>'+videoBlock(d.video_report)+'</div><div id="s_insight" style="margin-top:12px;"></div>';
   document.getElementById('s_out').innerHTML=h;
+  annotatePlayers('s_out');
 }
 
 async function runPlan(){
@@ -1087,31 +1050,6 @@ async function runPlan(){
     h+='</div>';
   });
   h+='</div>'; document.getElementById('d_out').innerHTML=h;
-}
-
-async function runValidation(){
-  const err=document.getElementById('v_err'); err.textContent=''; document.getElementById('v_out').innerHTML='';
-  const btn=document.getElementById('v_go'); btn.disabled=true; const old=btn.textContent; btn.textContent='Running…';
-  try{
-    const r=await fetch('/validation'); const d=await r.json();
-    if(!r.ok){ err.textContent=d.error||'Error'; return; }
-    document.body.classList.add('bg-pitch');
-    const m=d.metrics;
-    let h='<div class="metrics">';
-    h+=`<div class="metric"><div class="big">${(m.role_acc*100).toFixed(0)}%</div><div class="lbl">Role accuracy (${m.n} players)</div></div>`;
-    h+=`<div class="metric"><div class="big">${(m.p5*100).toFixed(0)}%</div><div class="lbl">Precision@5 are internationals</div></div>`;
-    h+=`<div class="metric"><div class="big">${(m.recall*100).toFixed(0)}%</div><div class="lbl">Internationals flagged</div></div>`;
-    h+=`<div class="metric"><div class="big">+${m.separation.toFixed(0)}</div><div class="lbl">Rating gap (intl vs not)</div></div>`;
-    h+=`<div class="metric"><div class="big">${m.rho>=0?'+':''}${m.rho.toFixed(2)}</div><div class="lbl">Spearman (rating vs call-up)</div></div>`;
-    h+='</div>';
-    h+='<div class="card"><table><thead><tr><th>Player</th><th>Real</th><th>Engine</th><th>Rating</th><th>Verdict</th><th>India call-up</th></tr></thead><tbody>';
-    d.rows.forEach(r=>{ h+=`<tr><td>${r.player}</td><td>${r.real_pos}</td><td>${r.engine_pos} ${r.pos_correct?'✓':'✗'}</td>
-      <td><div style="display:flex;align-items:center;gap:8px;"><div class="bar"><span style="width:${r.rating}%"></span></div><b>${r.rating}</b></div></td>
-      <td><span class="pill ${r.verdict}">${r.verdict}</span></td><td>${r.national?'<span style="color:var(--green);font-weight:700;">YES</span>':'no'}</td></tr>`; });
-    h+='</tbody></table></div>';
-    document.getElementById('v_out').innerHTML=h;
-  }catch(e){ err.textContent='Request failed: '+e; }
-  finally{ btn.disabled=false; btn.textContent=old; }
 }
 
 /* ---------- Development Lab: 2D pitch simulation ---------- */
@@ -1187,7 +1125,7 @@ async function runDev(){
   d.players.forEach((p,idx)=>{
     const cg=p.ceiling, bandkey=cg.band.split(' ')[0];
     h+=`<div class="devcard"><div class="devhead">
-      <h3>${p.player} ${p.potential_flag?'<span class="star">★</span>':''}</h3>
+      <h3><span class="pname" data-player="${p.player}">${p.player}</span> ${p.potential_flag?'<span class="star">★</span>':''}</h3>
       <span class="pill ${p.verdict}">${p.verdict}</span>
       <span class="ceil">${p.role_name} · now ${cg.current} → ceiling ${cg.ceiling}</span>
       <span class="band ${bandkey}">${cg.band}</span></div>
@@ -1230,43 +1168,22 @@ async function runDev(){
     h+='</div>';
   });
   document.getElementById('g_out').innerHTML=h;
+  annotatePlayers('g_out');
 }
-
-/* ---- full evaluation across all three sections ---- */
-async function runEvaluate(){
-  const err=document.getElementById('v_err'); err.textContent=''; document.getElementById('v_out').innerHTML='';
-  const btn=document.getElementById('v_go'); btn.disabled=true; const old=btn.textContent; btn.textContent='Evaluating…';
+/* ---- LLM player-existence check: flags names that aren't real footballers ---- */
+async function annotatePlayers(containerId){
+  const c=document.getElementById(containerId); if(!c) return;
+  const els=[...c.querySelectorAll('.pname[data-player]')];
+  const names=[...new Set(els.map(e=>e.getAttribute('data-player')))];
+  if(!names.length) return;
   try{
-    const r=await fetch('/evaluate'); const d=await r.json();
-    if(!r.ok){ err.textContent=d.error||'Error'; return; }
-    document.body.classList.add('bg-pitch');
-    const s=d.scouting, dv=d.development, p=d.penalty;
-    let h='';
-    function group(title, cards){ let g='<h3 style="margin:14px 0 6px;color:var(--accent);">'+title+'</h3><div class="metrics">'; cards.forEach(c=>{ g+=`<div class="metric"><div class="big">${c.v}</div><div class="lbl">${c.l}</div></div>`; }); return g+'</div>'; }
-    h+=group('Scouting accuracy', [
-      {v:(s.role_acc*100).toFixed(0)+'%', l:'Correct position ('+s.n+' players)'},
-      {v:(s.p5*100).toFixed(0)+'%', l:'Precision@5 are internationals'} ]);
-    h+=group('Development accuracy', [
-      {v:(dv.recall*100).toFixed(0)+'%', l:'Future internationals flagged to develop'},
-      {v:'+'+dv.separation.toFixed(0), l:'Ceiling/rating gap (intl vs not)'} ]);
-    h+=group('Penalty accuracy', [
-      {v:p.pairwise.toFixed(0)+'%', l:'Scorers ranked above missers ('+p.n+' takers)'},
-      {v:p.scorer.toFixed(0)+' vs '+p.misser.toFixed(0), l:'Readiness: scorers vs missers'} ]);
-    // scouting table
-    h+='<div class="card"><h4 style="margin:0 0 4px;">Scouting / Development — per player</h4><table><thead><tr><th>Player</th><th>Real</th><th>Engine</th><th>Rating</th><th>Verdict</th><th>India?</th></tr></thead><tbody>';
-    d.rows.forEach(r=>{ h+=`<tr><td>${r.player}</td><td>${r.real_pos}</td><td>${r.engine_pos} ${r.pos_correct?'✓':'✗'}</td>
-      <td><div style="display:flex;align-items:center;gap:8px;"><div class="bar"><span style="width:${r.rating}%"></span></div><b>${r.rating}</b></div></td>
-      <td><span class="pill ${r.verdict}">${r.verdict}</span></td><td>${r.national?'<span style="color:var(--green);font-weight:700;">YES</span>':'no'}</td></tr>`; });
-    h+='</tbody></table></div>';
-    // penalty per-match table
-    h+='<div class="card" style="margin-top:14px;"><h4 style="margin:0 0 4px;">Penalty — 10 real shootouts</h4><table><thead><tr><th>Match</th><th>Result</th><th>Scorers&gt;Missers</th></tr></thead><tbody>';
-    p.matches.forEach(m=>{ h+=`<tr><td>${m.name}</td><td style="color:var(--mut);">${m.result}</td><td><span class="pill ${m.accuracy>=100?'SIGN':'MONITOR'}">${m.accuracy}%</span></td></tr>`; });
-    h+='</tbody></table></div>';
-    document.getElementById('v_out').innerHTML=h;
-  }catch(e){ err.textContent='Request failed: '+e; }
-  finally{ btn.disabled=false; btn.textContent=old; }
+    const r=await fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({players:names})});
+    const d=await r.json(); const res=d.results||{};
+    els.forEach(e=>{ const v=res[e.getAttribute('data-player')];
+      if(v==='unknown'){ e.insertAdjacentHTML('afterend',' <span class="notfound" title="Not found as a real footballer by the LLM check">⚠ not found</span>'); }
+    });
+  }catch(e){}
 }
-populateShootouts();
 </script>
 </body>
 </html>

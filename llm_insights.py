@@ -77,6 +77,51 @@ def _build_prompt(player, role, attributes, weaknesses, strengths, base):
     return "\n".join(lines)
 
 
+def verify_players(names):
+    """Ask the LLM whether each name is a real, known professional footballer.
+    Returns {name: 'real' | 'unknown' | 'unverified'}.
+    'unverified' = no LLM configured (can't check)."""
+    names = [n for n in (names or []) if n and n.strip()]
+    if not names:
+        return {}
+    provider_name, api_key, base_url, default_model = _provider()
+    if provider_name is None:
+        return {n: "unverified" for n in names}
+    try:
+        import json as _json
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key, base_url=base_url)
+        listing = "\n".join(f"- {n}" for n in names)
+        prompt = (
+            "Here is a list of names extracted from football commentary. For EACH name, "
+            "say whether it is a real, known professional or notable footballer (true) or "
+            "not a real footballer / likely not a person (false). Reply ONLY with a JSON "
+            "object mapping each exact name to true or false.\n\n" + listing
+        )
+        resp = client.chat.completions.create(
+            model=default_model,
+            messages=[{"role": "system", "content": "You are a football knowledge checker. Reply only with JSON."},
+                      {"role": "user", "content": prompt}],
+            temperature=0.0, max_tokens=400,
+        )
+        txt = resp.choices[0].message.content.strip()
+        # strip code fences if present
+        if txt.startswith("```"):
+            txt = txt.strip("`")
+            txt = txt[txt.find("{"):txt.rfind("}") + 1]
+        else:
+            txt = txt[txt.find("{"):txt.rfind("}") + 1]
+        parsed = _json.loads(txt)
+        out = {}
+        low = {k.lower(): v for k, v in parsed.items()}
+        for n in names:
+            v = parsed.get(n, low.get(n.lower()))
+            out[n] = ("real" if v else "unknown") if v is not None else "unverified"
+        return out
+    except Exception:
+        return {n: "unverified" for n in names}
+
+
 def continental_insight(player, role, attributes, weaknesses=None, strengths=None, model=None):
     """Return a development-insight dict. Uses OpenAI if configured, else offline."""
     base = offline_insight(player, role, attributes, weaknesses, strengths)
