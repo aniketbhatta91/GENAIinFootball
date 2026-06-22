@@ -273,8 +273,14 @@ def analyze_scouting(commentary, role="ST", roster=None, video_files=None, top_n
     cmap = composure_map_from_videos(video_files or [], report)
     profiles = engine.shortlist(commentary, target_role=role, roster=roster or None,
                                 top_n=top_n, video_signals=video_signals_for(roster, cmap) or None)
+    # drop non-names (junk strings) when auto-detecting; trust an explicit roster
+    filtered_out = []
+    if not roster:
+        verify = llm_insights.verify_players([p.player for p in profiles])
+        filtered_out = [p.player for p in profiles if verify.get(p.player) == "unknown"]
+        profiles = [p for p in profiles if verify.get(p.player) != "unknown"]
     return {"role": role, "role_name": ROLE_NAMES.get(role, role), "video_report": report,
-            "model_used": engine.model_used,
+            "model_used": engine.model_used, "filtered_out": filtered_out,
             "shortlist": [asdict(p) for p in profiles],
             "signings": [p.player for p in profiles if p.verdict == "SIGN"],
             "prospects": [p.player for p in profiles if p.potential_flag]}
@@ -296,6 +302,10 @@ def analyze_plans(commentary, role="ST", roster=None, top_n=12, engine=None, wea
 def analyze_development(commentary, roster=None, engine=None):
     engine = engine or scout_engine
     players = engine.detect_players(commentary, roster=roster or None)
+    # drop non-names (junk strings) when auto-detecting; trust an explicit roster
+    if not roster:
+        verify = llm_insights.verify_players(list(players.keys()))
+        players = {k: v for k, v in players.items() if verify.get(k) != "unknown"}
     devs = []
     for name, sents in players.items():
         prof = engine.profile_player(name, sents, target_role=None)  # best role
@@ -1107,6 +1117,8 @@ async function runScout(){
   h+= d.signings.length? ('Recommended to sign: '+d.signings.join(', ')+'. ') : 'No outright signings — development options below. ';
   if(d.prospects.length) h+='Prospects: '+d.prospects.join(', ')+'.';
   h+=' <span style="color:var(--mut);font-size:12px;">Model: '+(d.model_used||'offline')+'</span></div>';
+  if(d.filtered_out&&d.filtered_out.length)
+    h+='<div class="vid" style="margin-bottom:10px;">Removed (not a player name): '+d.filtered_out.join(', ')+'</div>';
   window._scout=d.shortlist;
   h+='<div class="card"><table><thead><tr><th>#</th><th>Player</th><th>Role fit</th><th>Verdict</th><th>Strengths</th><th>To improve</th><th>Develop</th></tr></thead><tbody>';
   d.shortlist.forEach((p,i)=>{ h+=`<tr><td>${i+1}</td><td><span class="pname" data-player="${p.player}">${p.player}</span> ${p.potential_flag?'<span class="star">★</span>':''}</td>
@@ -1115,7 +1127,6 @@ async function runScout(){
     <td><span class="simbtn good" onclick="scoutInsight(${i})">🌍 AI insight</span></td></tr>`; });
   h+='</tbody></table>'+videoBlock(d.video_report)+'</div><div id="s_insight" style="margin-top:12px;"></div>';
   document.getElementById('s_out').innerHTML=h;
-  annotatePlayers('s_out');
 }
 
 async function runPlan(){
@@ -1254,7 +1265,6 @@ async function runDev(){
     h+='</div>';
   });
   document.getElementById('g_out').innerHTML=h;
-  annotatePlayers('g_out');
 }
 /* ---- LLM player-existence check: flags names that aren't real footballers ---- */
 async function annotatePlayers(containerId){

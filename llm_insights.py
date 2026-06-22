@@ -78,9 +78,14 @@ def _build_prompt(player, role, attributes, weaknesses, strengths, base):
 
 
 def verify_players(names):
-    """Ask the LLM whether each name is a real, known professional footballer.
+    """Ask the LLM whether each string is a plausible PERSON'S NAME (a player),
+    versus a non-name wrongly picked up from commentary (a common word, a football
+    term, a team/club name, an action). Grassroots/unknown players still count as
+    names — we only weed out non-names.
     Returns {name: 'real' | 'unknown' | 'unverified'}.
-    'unverified' = no LLM configured (can't check)."""
+      real       = plausible player name (keep)
+      unknown    = not a player name (drop as unnecessary string)
+      unverified = no LLM configured (can't check, keep)."""
     names = [n for n in (names or []) if n and n.strip()]
     if not names:
         return {}
@@ -93,10 +98,13 @@ def verify_players(names):
         client = OpenAI(api_key=api_key, base_url=base_url)
         listing = "\n".join(f"- {n}" for n in names)
         prompt = (
-            "Here is a list of names extracted from football commentary. For EACH name, "
-            "say whether it is a real, known professional or notable footballer (true) or "
-            "not a real footballer / likely not a person (false). Reply ONLY with a JSON "
-            "object mapping each exact name to true or false.\n\n" + listing
+            "These strings were auto-extracted from football commentary as candidate "
+            "player names. For EACH item, reply true if it is a plausible PERSON'S NAME "
+            "of a footballer (UNKNOWN or grassroots players are fine — judge only whether "
+            "it looks like a person's name), or false if it is clearly NOT a person's name "
+            "— e.g. a common English word, a football term (penalty, goal, corner, offside), "
+            "a team or club name, or a non-name fragment. Reply ONLY with a JSON object "
+            "mapping each exact string to true or false.\n\n" + listing
         )
         resp = client.chat.completions.create(
             model=default_model,
