@@ -15,6 +15,7 @@ Run:
 """
 
 import os
+import re
 import csv
 import tempfile
 
@@ -22,7 +23,7 @@ from flask import Flask, request, jsonify, render_template_string
 
 from penalty_fusion_engine import PenaltyFusionEngine
 from scouting_engine import (ScoutingEngine, ROLE_NAMES, ROLE_WEIGHTS,
-                             generate_improvement_plan)
+                             generate_improvement_plan, strip_accents)
 import development_sim
 import llm_insights
 
@@ -152,31 +153,85 @@ def read_commentary(form_key="commentary", file_key="commentary_file"):
 NEUTRAL_PEN = {"team": "", "position": "", "pens_taken": "0", "pens_scored": "0",
                "technique_rating": "55", "composure_rating": "55", "big_game_experience": "3"}
 
+PEN_SCORE_WORDS = ["scored", "scores", "converted", "convert", "netted", "slotted",
+                   "buries", "dispatched", "tucked", "sends the keeper", "makes no mistake",
+                   "found the net", "goal"]
+PEN_MISS_WORDS = ["missed", "misses", "saved", "wide", "over the bar", "blazed", "skied",
+                  "hit the post", "off target", "fails", "dragged wide", "ballooned",
+                  "denied", "stopped"]
+
+
+def extract_penalty_outcomes(commentary, players):
+    """From the commentary, work out who actually scored vs missed (penalty/goal)."""
+    sents = re.split(r"[.!?\n]", commentary)
+    out = {}
+    for p in players:
+        key = strip_accents(p).lower()
+        toks = [t for t in key.split() if len(t) > 2] or [key]
+        scored = missed = False
+        for s in sents:
+            sl = strip_accents(s).lower()
+            if any(t in sl for t in toks):
+                if any(w in sl for w in PEN_MISS_WORDS):
+                    missed = True
+                elif any(w in sl for w in PEN_SCORE_WORDS):
+                    scored = True
+        if missed and not scored:
+            out[p] = "missed"
+        elif scored and not missed:
+            out[p] = "scored"
+        else:
+            out[p] = None  # unknown / ambiguous
+    return out
+
+
+def evaluate_penalty_run(results, outcomes):
+    """Compare the app's suitability ranking with who actually scored/missed."""
+    scorers = [r for r in results if outcomes.get(r["player"]) == "scored"]
+    missers = [r for r in results if outcomes.get(r["player"]) == "missed"]
+    pairs = correct = 0
+    for a in scorers:
+        for b in missers:
+            pairs += 1
+            if a["suitability"] > b["suitability"]:
+                correct += 1
+    acc = round(100 * correct / pairs) if pairs else None
+    return {
+        "scorers": [r["player"] for r in scorers],
+        "missers": [r["player"] for r in missers],
+        "pairs": pairs, "correct": correct, "accuracy": acc,
+        "n_with_outcome": len(scorers) + len(missers),
+    }
+
 
 def analyze_penalty(commentary, team=None, video_files=None, engine=None):
     """Build the penalty-taker list from the PLAYERS IN THE ENTERED COMMENTARY.
-    Known players (in player_penalty_stats.csv) use their real stats; players the
-    app has never seen get neutral stats and are scored mainly on in-match
-    readiness from the commentary."""
+    Known players (in player_penalty_stats.csv) use their real stats; unknown
+    players get neutral stats and are scored on in-match readiness. Names the LLM
+    says are not real footballers are filtered out. Finally, if the commentary
+    says who actually scored/missed, the output is scored for accuracy."""
     engine = engine or penalty_engine
     report = []
     cmap = composure_map_from_videos(video_files or [], report)
 
-    # CSV stats lookup (by full name and by surname)
     with open(STATS_PATH, newline="", encoding="utf-8") as f:
         csv_rows = list(csv.DictReader(f))
     by_name = {r["player"].strip().lower(): r for r in csv_rows}
     by_surname = {r["player"].strip().lower().split()[-1]: r for r in csv_rows}
 
-    # detect the players actually mentioned in the commentary (team names filtered)
-    detected = scout_engine.detect_players(commentary, min_mentions=1)
+    detected = list(scout_engine.detect_players(commentary, min_mentions=1).keys())
+
+    # filter out names the LLM does not recognise as real footballers
+    verify = llm_insights.verify_players(detected)
+    filtered_out = [n for n in detected if verify.get(n) == "unknown"]
+    kept = [n for n in detected if verify.get(n) != "unknown"]
 
     results = []
-    for name in detected:
+    for name in kept:
         key = name.strip().lower()
         base = by_name.get(key) or by_surname.get(key.split()[-1])
         row = dict(base) if base else dict(NEUTRAL_PEN, player=name)
-        row["player"] = name  # keep the name as written in the commentary
+        row["player"] = name
         if team and row.get("team", "").lower() != team.lower():
             continue
         vk = next((k for k in cmap if k in key or key.split()[-1] == k), None)
@@ -185,11 +240,20 @@ def analyze_penalty(commentary, team=None, video_files=None, engine=None):
         res = engine.score_player(row, commentary)
         res["video_used"] = bool(vk)
         res["known"] = bool(base)
+        res["outcome"] = None
         results.append(res)
 
     results.sort(key=lambda x: x["suitability"], reverse=True)
+
+    outcomes = extract_penalty_outcomes(commentary, [r["player"] for r in results])
+    for r in results:
+        r["outcome"] = outcomes.get(r["player"])
+    evaluation = evaluate_penalty_run(results, outcomes)
+
     return {"results": results, "video_report": report,
-            "recommended_order": [p["player"] for p in results if p["category"] == "RECOMMENDED"]}
+            "recommended_order": [p["player"] for p in results if p["category"] == "RECOMMENDED"],
+            "filtered_out": filtered_out, "evaluation": evaluation,
+            "verification_active": llm_insights.llm_configured()}
 
 
 def video_signals_for(roster, cmap):
@@ -556,6 +620,9 @@ INDEX_HTML = r"""
   .icult { margin-top:10px; padding-top:8px; border-top:1px solid var(--line); font-size:12.5px; color:var(--mut); }
   .notfound { font-size:11px; font-weight:700; color:var(--amber); background:rgba(245,176,66,.14);
     border:1px solid rgba(245,176,66,.4); border-radius:999px; padding:1px 7px; white-space:nowrap; }
+  .ob { font-size:11px; font-weight:700; border-radius:999px; padding:1px 8px; white-space:nowrap; }
+  .ob.ok { color:var(--green); background:rgba(40,209,124,.14); }
+  .ob.no { color:var(--red); background:rgba(255,93,93,.14); }
 </style>
 </head>
 <body>
@@ -759,8 +826,7 @@ Optional video signal: OpenCV motion analysis ─▶ composure score</div>
         <label>Player video footage (optional)</label>
         <input type="file" id="p_videos" accept="video/*" multiple/>
         <div class="hint">Name clips after players, e.g. <b>Havertz.mp4</b>, to read composure.</div>
-        <label style="margin-top:14px;">Filter to team (optional)</label>
-        <select id="p_team"><option value="">All players</option><option>PSG</option><option>Arsenal</option><option>Indian Arrows</option><option>Real Kashmir</option></select>
+        <div class="hint" style="margin-top:10px;">The list is built from the players named in your commentary. Names the LLM doesn't recognise as real footballers are dropped, and if the commentary says who scored/missed, the output is scored for accuracy.</div>
         <button class="go" id="p_go" onclick="runPenalty()">Get penalty list</button>
         <div id="p_err" class="err"></div>
       </div>
@@ -987,24 +1053,44 @@ async function post(url, fd, btn, label, err){
   finally{ btn.disabled=false; btn.textContent=old; }
 }
 
+function outcomeBadge(o){
+  if(o==='scored') return ' <span class="ob ok">✅ scored</span>';
+  if(o==='missed') return ' <span class="ob no">❌ missed</span>';
+  return '';
+}
 async function runPenalty(){
   const err=document.getElementById('p_err'); err.textContent=''; document.getElementById('p_out').innerHTML='';
   const fd=new FormData();
   fd.append('commentary', document.getElementById('p_commentary').value);
-  fd.append('team', document.getElementById('p_team').value);
   const cf=document.getElementById('p_commentary_file').files[0]; if(cf) fd.append('commentary_file', cf);
   for(const v of document.getElementById('p_videos').files) fd.append('videos', v);
   penaltySettings(fd);
   const d=await post('/analyze', fd, document.getElementById('p_go'), '', err); if(!d) return;
   let h=''; if(d.recommended_order&&d.recommended_order.length)
     h+='<div class="order"><b>Suggested taker order:</b> '+d.recommended_order.map((n,i)=>(i+1)+'. '+n).join('   ')+'</div>';
-  h+='<div class="card"><table><thead><tr><th>#</th><th>Player</th><th>Team</th><th>Suitability</th><th>Verdict</th><th>Pen record</th><th>Mental</th><th>Fatigue</th></tr></thead><tbody>';
-  d.results.forEach((p,i)=>{ h+=`<tr><td>${i+1}</td><td><span class="pname" data-player="${p.player}">${p.player}</span> ${p.video_used?'<span class="vtag">●vid</span>':''}</td><td>${p.team||'—'}</td>
+  if(d.filtered_out&&d.filtered_out.length)
+    h+='<div class="vid" style="margin-bottom:10px;">Filtered out (not recognised as real footballers): '+d.filtered_out.join(', ')+'</div>';
+  h+='<div class="card"><table><thead><tr><th>#</th><th>Player</th><th>Suitability</th><th>Verdict</th><th>Pen record</th><th>Mental</th><th>Actual</th></tr></thead><tbody>';
+  d.results.forEach((p,i)=>{ h+=`<tr><td>${i+1}</td><td><span class="pname" data-player="${p.player}">${p.player}</span> ${p.video_used?'<span class="vtag">●vid</span>':''}${p.known?'':' <span class="vtag" style="color:var(--mut)">new</span>'}</td>
     <td><div style="display:flex;align-items:center;gap:8px;"><div class="bar"><span style="width:${p.suitability}%"></span></div><b>${p.suitability}</b></div></td>
-    <td><span class="pill ${p.category}">${p.category}</span></td><td>${p.pen_record}</td><td>${p.mental_state}</td><td>${p.fatigue}</td></tr>`; });
+    <td><span class="pill ${p.category}">${p.category}</span></td><td>${p.pen_record}</td><td>${p.mental_state}</td><td>${outcomeBadge(p.outcome)||'<span style="color:var(--mut)">—</span>'}</td></tr>`; });
   h+='</tbody></table>'+videoBlock(d.video_report)+'</div>';
+  // accuracy evaluation vs actual outcomes from the commentary
+  const ev=d.evaluation;
+  if(ev && ev.n_with_outcome>0){
+    h+='<div class="teambox" style="margin-top:14px;">';
+    if(ev.accuracy!==null){
+      h+='<b>Output accuracy: '+ev.accuracy+'%</b> — the app ranked the actual penalty scorers above the players who missed in '+ev.correct+' of '+ev.pairs+' comparisons.<br>';
+    } else {
+      h+='<b>Outcome check.</b><br>';
+    }
+    if(ev.scorers.length) h+='✅ Scored (from commentary): '+ev.scorers.join(', ')+'<br>';
+    if(ev.missers.length) h+='❌ Missed (from commentary): '+ev.missers.join(', ');
+    h+='</div>';
+  } else {
+    h+='<div class="vid" style="margin-top:10px;">No penalty scored/missed outcomes were found in the commentary to evaluate accuracy against. Add lines like "X scored the penalty" / "Y\'s penalty was saved" to enable scoring.</div>';
+  }
   document.getElementById('p_out').innerHTML=h;
-  annotatePlayers('p_out');
 }
 
 async function runScout(){
