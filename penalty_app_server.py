@@ -26,6 +26,7 @@ from scouting_engine import (ScoutingEngine, ROLE_NAMES, ROLE_WEIGHTS,
 from backtest import run_backtest
 import development_sim
 import llm_insights
+import penalty_shootouts
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 STATS_PATH = os.path.join(BASE, "player_penalty_stats.csv")
@@ -380,6 +381,39 @@ def validation():
         return jsonify({"error": f"Validation data not available: {e}"}), 500
 
 
+@app.route("/shootouts")
+def shootouts():
+    return jsonify({"matches": [{"id": m["id"], "name": m["name"]} for m in penalty_shootouts.SHOOTOUTS]})
+
+
+@app.route("/shootout")
+def shootout():
+    m = penalty_shootouts.get(request.args.get("id", ""))
+    if not m:
+        return jsonify({"error": "unknown match"}), 404
+    return jsonify({"name": m["name"], "result": m["result"],
+                    "text": penalty_shootouts.shootout_commentary(m)})
+
+
+@app.route("/evaluate")
+def evaluate_all():
+    """Accuracy across all three sections: scouting, development, penalty."""
+    try:
+        rows, sm = run_backtest(BASE)
+    except Exception as e:
+        return jsonify({"error": f"Evaluation data not available: {e}"}), 500
+    pen = penalty_shootouts.evaluate()
+    return jsonify({
+        "scouting": {"role_acc": sm["role_acc"], "p5": sm["p5"], "recall": sm["recall"], "n": sm["n"]},
+        "development": {"recall": sm["recall"], "mean_intl": sm["mean_intl"],
+                        "mean_non": sm["mean_non"], "separation": sm["separation"], "n": sm["n"]},
+        "penalty": {"pairwise": pen["pairwise_accuracy"], "scorer": pen["mean_scorer_readiness"],
+                    "misser": pen["mean_misser_readiness"], "n": pen["n_takers"],
+                    "matches": pen["matches"]},
+        "rows": rows,
+    })
+
+
 # ───────────────────────── frontend ─────────────────────────
 INDEX_HTML = r"""
 <!DOCTYPE html>
@@ -718,7 +752,7 @@ Optional video signal: OpenCV motion analysis ─▶ composure score</div>
     <div class="tab" id="tab-plan" onclick="showTab('plan')">Improvement Plan</div>
     <div class="tab" id="tab-dev" onclick="showTab('dev')">Development Lab</div>
     <div class="tab" id="tab-tr" onclick="showTab('tr')">Transcribe</div>
-    <div class="tab" id="tab-val" onclick="showTab('val')">Validation</div>
+    <div class="tab" id="tab-val" onclick="showTab('val')">Evaluate</div>
   </div>
 
   <!-- PENALTY -->
@@ -731,6 +765,8 @@ Optional video signal: OpenCV motion analysis ─▶ composure score</div>
           <span class="chip" onclick="loadSample('penalty_demo','p_commentary')">Load PSG–Arsenal demo</span>
           <span class="chip" onclick="loadSample('ileague_commentary','p_commentary')">Load REAL I-League match</span>
         </div>
+        <label style="margin-top:10px;">…or pick a real penalty shootout (10 matches)</label>
+        <select id="p_shootout" onchange="loadShootout()"><option value="">— select a shootout —</option></select>
         <label style="margin-top:10px;">…or upload commentary (.txt)</label>
         <input type="file" id="p_commentary_file" accept=".txt"/>
         <label style="margin-top:10px;">…or transcribe a video/audio into this box</label>
@@ -858,9 +894,10 @@ Optional video signal: OpenCV motion analysis ─▶ composure score</div>
   <!-- VALIDATION -->
   <div id="panel-val" class="hidden">
     <div class="card">
-      <b>Real-world backtest.</b> Tests the engine on real ISL "Emerging Player of the League" winners (2014–2024-25):
-      reading only performance descriptions, does it pick the right position and rate the future India internationals as top talent?
-      <button class="go" id="v_go" onclick="runValidation()">Run validation</button>
+      <b>How accurately is the app performing?</b> Evaluates all three engines against real outcomes:
+      <b>Scouting</b> &amp; <b>Development</b> vs real India call-ups (ISL Emerging Player winners + Indian Arrows graduates),
+      and <b>Penalty</b> vs 10 real penalty shootouts (does it rank actual scorers above missers?).
+      <button class="go" id="v_go" onclick="runEvaluate()">Run full evaluation</button>
       <div id="v_err" class="err"></div>
     </div>
     <div id="v_out" style="margin-top:18px;"></div>
@@ -869,6 +906,7 @@ Optional video signal: OpenCV motion analysis ─▶ composure score</div>
 
 <script>
 function showTab(t){
+  document.body.classList.remove('bg-pitch');   // back to stadium view on every tab switch
   ['pen','scout','plan','dev','tr','val'].forEach(x=>{
     document.getElementById('tab-'+x).classList.toggle('active', x===t);
     document.getElementById('panel-'+x).classList.toggle('hidden', x!==t);
@@ -881,6 +919,17 @@ async function loadSample(name, targetId){
 async function loadMatch(commName, commTarget, rosterName, rosterTarget){
   await loadSample(commName, commTarget);
   await loadSample(rosterName, rosterTarget);
+}
+async function populateShootouts(){
+  try{ const r=await fetch('/shootouts'); const d=await r.json();
+    const sel=document.getElementById('p_shootout'); if(!sel) return;
+    d.matches.forEach(m=>{ const o=document.createElement('option'); o.value=m.id; o.textContent=m.name; sel.appendChild(o); });
+  }catch(e){}
+}
+async function loadShootout(){
+  const id=document.getElementById('p_shootout').value; if(!id) return;
+  try{ const r=await fetch('/shootout?id='+id); const d=await r.json();
+    if(d.text!==undefined) document.getElementById('p_commentary').value=d.text; }catch(e){}
 }
 /* ---- video/audio transcription ---- */
 async function transcribeInto(input, targetId){
@@ -1182,6 +1231,42 @@ async function runDev(){
   });
   document.getElementById('g_out').innerHTML=h;
 }
+
+/* ---- full evaluation across all three sections ---- */
+async function runEvaluate(){
+  const err=document.getElementById('v_err'); err.textContent=''; document.getElementById('v_out').innerHTML='';
+  const btn=document.getElementById('v_go'); btn.disabled=true; const old=btn.textContent; btn.textContent='Evaluating…';
+  try{
+    const r=await fetch('/evaluate'); const d=await r.json();
+    if(!r.ok){ err.textContent=d.error||'Error'; return; }
+    document.body.classList.add('bg-pitch');
+    const s=d.scouting, dv=d.development, p=d.penalty;
+    let h='';
+    function group(title, cards){ let g='<h3 style="margin:14px 0 6px;color:var(--accent);">'+title+'</h3><div class="metrics">'; cards.forEach(c=>{ g+=`<div class="metric"><div class="big">${c.v}</div><div class="lbl">${c.l}</div></div>`; }); return g+'</div>'; }
+    h+=group('Scouting accuracy', [
+      {v:(s.role_acc*100).toFixed(0)+'%', l:'Correct position ('+s.n+' players)'},
+      {v:(s.p5*100).toFixed(0)+'%', l:'Precision@5 are internationals'} ]);
+    h+=group('Development accuracy', [
+      {v:(dv.recall*100).toFixed(0)+'%', l:'Future internationals flagged to develop'},
+      {v:'+'+dv.separation.toFixed(0), l:'Ceiling/rating gap (intl vs not)'} ]);
+    h+=group('Penalty accuracy', [
+      {v:p.pairwise.toFixed(0)+'%', l:'Scorers ranked above missers ('+p.n+' takers)'},
+      {v:p.scorer.toFixed(0)+' vs '+p.misser.toFixed(0), l:'Readiness: scorers vs missers'} ]);
+    // scouting table
+    h+='<div class="card"><h4 style="margin:0 0 4px;">Scouting / Development — per player</h4><table><thead><tr><th>Player</th><th>Real</th><th>Engine</th><th>Rating</th><th>Verdict</th><th>India?</th></tr></thead><tbody>';
+    d.rows.forEach(r=>{ h+=`<tr><td>${r.player}</td><td>${r.real_pos}</td><td>${r.engine_pos} ${r.pos_correct?'✓':'✗'}</td>
+      <td><div style="display:flex;align-items:center;gap:8px;"><div class="bar"><span style="width:${r.rating}%"></span></div><b>${r.rating}</b></div></td>
+      <td><span class="pill ${r.verdict}">${r.verdict}</span></td><td>${r.national?'<span style="color:var(--green);font-weight:700;">YES</span>':'no'}</td></tr>`; });
+    h+='</tbody></table></div>';
+    // penalty per-match table
+    h+='<div class="card" style="margin-top:14px;"><h4 style="margin:0 0 4px;">Penalty — 10 real shootouts</h4><table><thead><tr><th>Match</th><th>Result</th><th>Scorers&gt;Missers</th></tr></thead><tbody>';
+    p.matches.forEach(m=>{ h+=`<tr><td>${m.name}</td><td style="color:var(--mut);">${m.result}</td><td><span class="pill ${m.accuracy>=100?'SIGN':'MONITOR'}">${m.accuracy}%</span></td></tr>`; });
+    h+='</tbody></table></div>';
+    document.getElementById('v_out').innerHTML=h;
+  }catch(e){ err.textContent='Request failed: '+e; }
+  finally{ btn.disabled=false; btn.textContent=old; }
+}
+populateShootouts();
 </script>
 </body>
 </html>
