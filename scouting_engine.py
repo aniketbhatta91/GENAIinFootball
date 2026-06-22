@@ -92,6 +92,18 @@ STOPWORDS = {"The", "A", "It", "Now", "And", "But", "In", "Min", "From", "To",
              "Goal", "Penalty", "Substitution", "Assisted", "Yellow", "Red",
              "Card", "Shot", "Offside", "Corner", "Foul", "Free", "Kick",
              "Full", "Second", "First", "Bad", "Clinical", "Strong", "Sharp",
+             # football terms / phases of play (never player names)
+             "Attack", "Attacking", "Defence", "Defense", "Defending", "Midfield",
+             "Set", "Piece", "Long", "Short", "Counter", "Cross", "Build", "Press",
+             "Pressing", "Phase", "Possession", "Transition", "Tempo", "Third",
+             "Final", "Throw", "Header", "Tackle", "Block", "Save", "Pass", "Passing",
+             "Through", "Wide", "Wing", "Flank", "Box", "Area", "Edge", "Line",
+             "Side", "Back", "Front", "Near", "Far", "Build-up", "Counter-attack",
+             # common commentary adjectives that start sentences
+             "Brilliant", "Lovely", "Composed", "Nervous", "Confident", "Quick",
+             "Calm", "Poor", "Great", "Excellent", "Wonderful", "Superb", "Dangerous",
+             "Pacey", "Tireless", "Energetic", "Relentless", "Powerful", "Mature",
+             "Skillful", "Skilful", "Creative", "Intelligent", "Direct", "Lively",
              # team-name first words (so "Indian Arrows", "Real Kashmir" etc.
              # are not mistaken for players in auto-detect)
              "Indian", "Arrows", "Real", "Kashmir", "Mohun", "Bagan", "Bengaluru",
