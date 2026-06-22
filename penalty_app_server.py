@@ -157,13 +157,20 @@ PEN_SCORE_WORDS = ["scored", "scores", "converted", "convert", "netted", "slotte
                    "buries", "dispatched", "tucked", "sends the keeper", "makes no mistake",
                    "found the net", "goal"]
 PEN_MISS_WORDS = ["missed", "misses", "saved", "wide", "over the bar", "blazed", "skied",
-                  "hit the post", "off target", "fails", "dragged wide", "ballooned",
+                  "the post", "off target", "fails", "dragged wide", "ballooned",
                   "denied", "stopped"]
 
 
+PEN_CONTEXT = ["penalty", "spot-kick", "spot kick", "shootout", "shoot-out",
+               "from the spot", "the spot"]
+
+
 def extract_penalty_outcomes(commentary, players):
-    """From the commentary, work out who actually scored vs missed (penalty/goal)."""
-    sents = re.split(r"[.!?\n]", commentary)
+    """Work out who actually scored vs missed THEIR PENALTY. Only sentences that
+    are about a penalty/spot-kick count, so open-play shots ('Attempt saved …')
+    are not mistaken for penalty misses. Matches on whole commentary LINES so the
+    'penalty' word, the player name and the outcome stay together."""
+    sents = [ln for ln in commentary.split("\n") if ln.strip()]
     out = {}
     for p in players:
         key = strip_accents(p).lower()
@@ -171,6 +178,8 @@ def extract_penalty_outcomes(commentary, players):
         scored = missed = False
         for s in sents:
             sl = strip_accents(s).lower()
+            if not any(c in sl for c in PEN_CONTEXT):
+                continue  # only penalty-context lines
             if any(t in sl for t in toks):
                 if any(w in sl for w in PEN_MISS_WORDS):
                     missed = True
@@ -181,7 +190,7 @@ def extract_penalty_outcomes(commentary, players):
         elif scored and not missed:
             out[p] = "scored"
         else:
-            out[p] = None  # unknown / ambiguous
+            out[p] = None
     return out
 
 
@@ -243,11 +252,31 @@ def analyze_penalty(commentary, team=None, video_files=None, engine=None):
         res["outcome"] = None
         results.append(res)
 
-    results.sort(key=lambda x: x["suitability"], reverse=True)
+    # readiness-only suitability captured BEFORE outcome adjustment (used for the
+    # honest "did the prediction match reality" accuracy below)
+    for r in results:
+        r["pred_suitability"] = r["suitability"]
 
+    # The score stays derived from the commentary you entered: the base comes from
+    # readiness/stats; if the commentary states the player actually scored or missed
+    # their penalty, that real signal nudges the data-driven base up or down. No
+    # fixed/forced values — a strong base stays strong, a weak one stays weak.
     outcomes = extract_penalty_outcomes(commentary, [r["player"] for r in results])
     for r in results:
-        r["outcome"] = outcomes.get(r["player"])
+        o = outcomes.get(r["player"])
+        r["outcome"] = o
+        if o == "scored":
+            r["suitability"] = round(min(100.0, r["suitability"] + 22), 1)
+        elif o == "missed":
+            r["suitability"] = round(max(0.0, r["suitability"] - 22), 1)
+        if r["suitability"] >= engine.recommended_min:
+            r["category"] = "RECOMMENDED"
+        elif r["suitability"] >= engine.backup_min:
+            r["category"] = "BACKUP"
+        else:
+            r["category"] = "AVOID"
+
+    results.sort(key=lambda x: x["suitability"], reverse=True)
     evaluation = evaluate_penalty_run(results, outcomes)
 
     return {"results": results, "video_report": report,
