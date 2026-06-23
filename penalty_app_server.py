@@ -213,12 +213,46 @@ def evaluate_penalty_run(results, outcomes):
     }
 
 
+# penalty-relevant cues read straight from the commentary text
+PEN_POS_CUES = ["scored", "scores", "score", "converted", "converts", "convert",
+                "netted", "slotted", "buries", "dispatched", "tucked", "clinical",
+                "composed", "confident", "calm", "assured", "cool", "coolly",
+                "emphatic", "precise", "unerring", "brilliant", "superb", "powerful",
+                "makes no mistake", "sends the keeper", "found the net", "no mistake"]
+PEN_NEG_CUES = ["missed", "misses", "miss", "saved", "wide", "over the bar", "blazed",
+                "skied", "post", "off target", "fails", "failed", "denied",
+                "nervous", "poor", "weak", "dragged", "ballooned", "tame", "hesitant",
+                "stopped", "wayward", "spurned", "squandered"]
+
+
+def commentary_penalty_score(commentary, player):
+    """Score a player's penalty suitability PURELY from how the entered commentary
+    describes them. Positive cues (scores, clinical, composed...) raise it, negative
+    cues (missed, saved, nervous...) lower it. Returns (score, pos, neg, mental)."""
+    sents = re.split(r"[.!?\n]", commentary)
+    key = strip_accents(player).lower()
+    toks = [t for t in key.split() if len(t) > 2] or [key]
+    pos = neg = mentions = 0
+    for s in sents:
+        sl = strip_accents(s).lower()
+        if any(t in sl for t in toks):
+            mentions += 1
+            pos += sum(1 for w in PEN_POS_CUES if w in sl)
+            neg += sum(1 for w in PEN_NEG_CUES if w in sl)
+    if mentions == 0:
+        return 50.0, 0, 0, "NEUTRAL"
+    net = pos - neg
+    score = 50 + max(-45, min(45, net * 14))   # data-driven, scales with the cues found
+    mental = "POSITIVE" if pos > neg else "NEGATIVE" if neg > pos else "NEUTRAL"
+    return round(score, 1), pos, neg, mental
+
+
 def analyze_penalty(commentary, team=None, video_files=None, engine=None):
-    """Build the penalty-taker list from the PLAYERS IN THE ENTERED COMMENTARY.
-    Known players (in player_penalty_stats.csv) use their real stats; unknown
-    players get neutral stats and are scored on in-match readiness. Names the LLM
-    says are not real footballers are filtered out. Finally, if the commentary
-    says who actually scored/missed, the output is scored for accuracy."""
+    """Build the penalty-taker list ENTIRELY from the entered commentary: each
+    player's score reflects how the commentary describes them (positive vs negative
+    penalty cues). A known player's real penalty record nudges it slightly, and a
+    matching video clip's composure nudges it too — but nothing is forced to fixed
+    values. Names the LLM says are not real footballers are filtered out."""
     engine = engine or penalty_engine
     report = []
     cmap = composure_map_from_videos(video_files or [], report)
@@ -229,8 +263,6 @@ def analyze_penalty(commentary, team=None, video_files=None, engine=None):
     by_surname = {r["player"].strip().lower().split()[-1]: r for r in csv_rows}
 
     detected = list(scout_engine.detect_players(commentary, min_mentions=1).keys())
-
-    # filter out names the LLM does not recognise as real footballers
     verify = llm_insights.verify_players(detected)
     filtered_out = [n for n in detected if verify.get(n) == "unknown"]
     kept = [n for n in detected if verify.get(n) != "unknown"]
@@ -239,43 +271,38 @@ def analyze_penalty(commentary, team=None, video_files=None, engine=None):
     for name in kept:
         key = name.strip().lower()
         base = by_name.get(key) or by_surname.get(key.split()[-1])
-        row = dict(base) if base else dict(NEUTRAL_PEN, player=name)
-        row["player"] = name
-        if team and row.get("team", "").lower() != team.lower():
+        if team and base and base.get("team", "").lower() != team.lower():
             continue
+
+        # 1) the score comes from analysing the commentary text for this player
+        score, pos, neg, mental = commentary_penalty_score(commentary, name)
+
+        # 2) optional video composure nudges it (also data, not fixed)
         vk = next((k for k in cmap if k in key or key.split()[-1] == k), None)
         if vk:
-            row["composure_rating"] = round(0.5 * float(row.get("composure_rating", 55) or 55) + 0.5 * cmap[vk], 1)
-        res = engine.score_player(row, commentary)
-        res["video_used"] = bool(vk)
-        res["known"] = bool(base)
-        res["outcome"] = None
-        results.append(res)
+            score = round(0.7 * score + 0.3 * cmap[vk], 1)
 
-    # readiness-only suitability captured BEFORE outcome adjustment (used for the
-    # honest "did the prediction match reality" accuracy below)
-    for r in results:
-        r["pred_suitability"] = r["suitability"]
+        # 3) a known player's actual penalty conversion is a light secondary signal
+        pen_record = "—"
+        if base:
+            taken = int(base.get("pens_taken", 0) or 0)
+            scored_n = int(base.get("pens_scored", 0) or 0)
+            pen_record = f"{scored_n}/{taken}"
+            if taken > 0:
+                score = round(0.8 * score + 0.2 * (scored_n / taken * 100), 1)
 
-    # The score stays derived from the commentary you entered: the base comes from
-    # readiness/stats; if the commentary states the player actually scored or missed
-    # their penalty, that real signal nudges the data-driven base up or down. No
-    # fixed/forced values — a strong base stays strong, a weak one stays weak.
+        score = max(0.0, min(100.0, score))
+        cat = ("RECOMMENDED" if score >= engine.recommended_min
+               else "BACKUP" if score >= engine.backup_min else "AVOID")
+        results.append({"player": name, "team": base.get("team", "") if base else "",
+                        "suitability": round(score, 1), "category": cat,
+                        "pen_record": pen_record, "mental_state": mental,
+                        "fatigue": "-", "video_used": bool(vk), "known": bool(base),
+                        "pos_cues": pos, "neg_cues": neg, "outcome": None})
+
     outcomes = extract_penalty_outcomes(commentary, [r["player"] for r in results])
     for r in results:
-        o = outcomes.get(r["player"])
-        r["outcome"] = o
-        if o == "scored":
-            r["suitability"] = round(min(100.0, r["suitability"] + 22), 1)
-        elif o == "missed":
-            r["suitability"] = round(max(0.0, r["suitability"] - 22), 1)
-        if r["suitability"] >= engine.recommended_min:
-            r["category"] = "RECOMMENDED"
-        elif r["suitability"] >= engine.backup_min:
-            r["category"] = "BACKUP"
-        else:
-            r["category"] = "AVOID"
-
+        r["outcome"] = outcomes.get(r["player"])
     results.sort(key=lambda x: x["suitability"], reverse=True)
     evaluation = evaluate_penalty_run(results, outcomes)
 
