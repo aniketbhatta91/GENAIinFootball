@@ -26,6 +26,7 @@ from scouting_engine import (ScoutingEngine, ROLE_NAMES, ROLE_WEIGHTS,
                              generate_improvement_plan, strip_accents)
 import development_sim
 import llm_insights
+import match_simulator
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 STATS_PATH = os.path.join(BASE, "player_penalty_stats.csv")
@@ -519,6 +520,14 @@ def develop():
     return jsonify(analyze_development(commentary, roster=roster, engine=build_scout_engine()))
 
 
+@app.route("/simulate", methods=["POST"])
+def simulate_route():
+    commentary = read_commentary()
+    if len(commentary) < 20:
+        return jsonify({"error": "Please provide commentary or a transcript."}), 400
+    return jsonify(match_simulator.simulate(commentary))
+
+
 @app.route("/verify", methods=["POST"])
 def verify():
     """Check via LLM whether each name is a real footballer. Returns
@@ -689,6 +698,23 @@ INDEX_HTML = r"""
   .ob { font-size:11px; font-weight:700; border-radius:999px; padding:1px 8px; white-space:nowrap; }
   .ob.ok { color:var(--green); background:rgba(40,209,124,.14); }
   .ob.no { color:var(--red); background:rgba(255,93,93,.14); }
+  /* match simulator timeline */
+  .timeline { display:flex; flex-direction:column; gap:8px; }
+  .sim-ev { display:flex; gap:12px; background:var(--card); border:1px solid var(--line);
+    border-left:4px solid var(--mut); border-radius:10px; padding:10px 12px;
+    animation:simIn .35s ease; }
+  .sim-ev.good { border-left-color:var(--green); }
+  .sim-ev.bad { border-left-color:var(--red); }
+  .sim-ev.neu { border-left-color:var(--accent); }
+  @keyframes simIn { from{ opacity:0; transform:translateY(-6px);} to{ opacity:1; transform:none;} }
+  .sim-min { font-weight:800; color:var(--gold); min-width:46px; font-size:14px; }
+  .sim-body { flex:1; }
+  .sim-act { font-size:14px; }
+  .sim-txt { font-size:13px; color:#cdd8ee; margin-top:2px; }
+  .sim-sug { font-size:12.5px; margin-top:5px; padding:4px 8px; border-radius:6px; }
+  .sim-sug.good { background:rgba(40,209,124,.12); color:var(--green); }
+  .sim-sug.bad { background:rgba(255,93,93,.12); color:var(--red); }
+  .sim-sug.neu { background:rgba(159,176,208,.10); color:var(--mut); }
 </style>
 </head>
 <body>
@@ -870,6 +896,7 @@ Optional video signal: OpenCV motion analysis ─▶ composure score</div>
     <div class="tab" id="tab-scout" onclick="showTab('scout')">Scouting</div>
     <div class="tab" id="tab-plan" onclick="showTab('plan')">Improvement Plan</div>
     <div class="tab" id="tab-dev" onclick="showTab('dev')">Development Lab</div>
+    <div class="tab" id="tab-sim" onclick="showTab('sim')">Match Simulator</div>
     <div class="tab" id="tab-tr" onclick="showTab('tr')">Transcribe</div>
   </div>
 
@@ -979,6 +1006,34 @@ Optional video signal: OpenCV motion analysis ─▶ composure score</div>
     <div id="g_out" style="margin-top:18px;"></div>
   </div>
 
+  <!-- MATCH SIMULATOR -->
+  <div id="panel-sim" class="hidden">
+    <div class="grid">
+      <div class="card">
+        <label>Commentary / video transcript</label>
+        <textarea id="m_commentary" placeholder="Paste minute-by-minute commentary or a transcript..."></textarea>
+        <div class="chips">
+          <span class="chip" onclick="loadSample('ileague_commentary','m_commentary')">Load REAL I-League match</span>
+          <span class="chip" onclick="loadSample('isl_scout','m_commentary')">Load ISL test match</span>
+        </div>
+        <label style="margin-top:10px;">…or transcribe a video/audio into this box</label>
+        <input type="file" accept="video/*,audio/*" onchange="transcribeInto(this,'m_commentary')"/>
+      </div>
+      <div class="card">
+        <div class="hint">Plays the match minute by minute: each event shows the player's action and a coaching suggestion (✅ good · ❌ to improve). Key moments animate on the pitch.</div>
+        <button class="go" id="m_go" onclick="runSim()">Build simulation</button>
+        <div id="m_controls" style="display:none;margin-top:12px;">
+          <button class="simbtn good" onclick="simPlay()">▶ Play</button>
+          <button class="simbtn" onclick="simPause()">⏸ Pause</button>
+          <button class="simbtn" onclick="simShowAll()">Show all</button>
+          <span id="m_progress" style="color:var(--mut);font-size:13px;margin-left:8px;"></span>
+        </div>
+        <div id="m_err" class="err"></div>
+      </div>
+    </div>
+    <div id="m_out" style="margin-top:18px;"></div>
+  </div>
+
   <!-- TRANSCRIBE -->
   <div id="panel-tr" class="hidden">
     <div class="grid">
@@ -1011,7 +1066,7 @@ Optional video signal: OpenCV motion analysis ─▶ composure score</div>
 <script>
 function showTab(t){
   document.body.classList.remove('bg-pitch');   // back to stadium view on every tab switch
-  ['pen','scout','plan','dev','tr'].forEach(x=>{
+  ['pen','scout','plan','dev','sim','tr'].forEach(x=>{
     document.getElementById('tab-'+x).classList.toggle('active', x===t);
     document.getElementById('panel-'+x).classList.toggle('hidden', x!==t);
   });
@@ -1322,6 +1377,46 @@ async function runDev(){
   });
   document.getElementById('g_out').innerHTML=h;
 }
+/* ---- Match Simulator: minute-by-minute playback ---- */
+let _sim={events:[], i:0, timer:null};
+async function runSim(){
+  const err=document.getElementById('m_err'); err.textContent=''; document.getElementById('m_out').innerHTML='';
+  document.getElementById('m_controls').style.display='none';
+  const fd=new FormData(); fd.append('commentary', document.getElementById('m_commentary').value);
+  const d=await post('/simulate', fd, document.getElementById('m_go'), '', err); if(!d) return;
+  _sim={events:d.events, i:0, timer:null};
+  let head='<div class="order"><b>Match simulation.</b> '+d.summary.events+' events · '+d.summary.goals+' goals · '
+    +d.summary.good+' good ✅ · '+d.summary.bad+' to improve ❌</div>';
+  head+='<div id="m_pitchwrap" style="max-width:440px;margin-bottom:12px;">'+pitchSVG()+'</div>';
+  head+='<div id="m_timeline" class="timeline"></div>';
+  document.getElementById('m_out').innerHTML=head;
+  document.getElementById('m_controls').style.display='block';
+  simPlay();
+}
+function simRow(e){
+  const v=e.verdict==='good'?'good':e.verdict==='bad'?'bad':'neu';
+  const sug=e.suggestion?('<div class="sim-sug '+v+'">'+(e.verdict==='good'?'✅ ':e.verdict==='bad'?'❌ ':'• ')+e.suggestion+'</div>'):'';
+  const playBtn=e.scenario?(' <span class="simbtn good" style="padding:2px 8px;font-size:11px;" onclick="simPitch(\''+e.scenario+'\',\''+v+'\')">▶ pitch</span>'):'';
+  return '<div class="sim-ev '+v+'"><div class="sim-min">'+(e.minute_label||"·")+'</div>'
+    +'<div class="sim-body"><div class="sim-act">'+e.icon+' <b>'+e.label+'</b>'+(e.player?(' — '+e.player):'')+playBtn+'</div>'
+    +'<div class="sim-txt">'+e.text+'</div>'+sug+'</div></div>';
+}
+function simReveal(){
+  const tl=document.getElementById('m_timeline'); if(!tl) return false;
+  if(_sim.i>=_sim.events.length){ simPause(); return false; }
+  const e=_sim.events[_sim.i++];
+  tl.insertAdjacentHTML('afterbegin', simRow(e));
+  document.getElementById('m_progress').textContent=_sim.i+' / '+_sim.events.length;
+  if(e.scenario){ const sv=document.querySelector('#m_pitchwrap svg.simpitch'); if(sv) playSimInline(sv, e.scenario, e.verdict==='bad'?'actual':'better'); }
+  return true;
+}
+function simPlay(){ if(_sim.timer) return; document.body.classList.add('bg-pitch');
+  _sim.timer=setInterval(()=>{ if(!simReveal()) simPause(); }, 900); }
+function simPause(){ if(_sim.timer){ clearInterval(_sim.timer); _sim.timer=null; } }
+function simShowAll(){ simPause(); while(_sim.i<_sim.events.length) simReveal(); }
+function simPitch(scenario, v){ const sv=document.querySelector('#m_pitchwrap svg.simpitch'); if(sv) playSimInline(sv, scenario, v==='bad'?'actual':'better'); }
+function playSimInline(svg, scenario, mode){ try{ playSim(svg, scenario, mode); }catch(e){} }
+
 /* ---- LLM player-existence check: flags names that aren't real footballers ---- */
 async function annotatePlayers(containerId){
   const c=document.getElementById(containerId); if(!c) return;
