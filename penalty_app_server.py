@@ -227,25 +227,38 @@ PEN_NEG_CUES = ["missed", "misses", "miss", "saved", "wide", "over the bar", "bl
 
 
 def commentary_penalty_score(commentary, player):
-    """Score a player's penalty suitability PURELY from how the entered commentary
-    describes them. Positive cues (scores, clinical, composed...) raise it, negative
-    cues (missed, saved, nervous...) lower it. Returns (score, pos, neg, mental)."""
-    sents = re.split(r"[.!?\n]", commentary)
+    """Score a player's penalty suitability from the entered commentary. What a
+    player did with THEIR PENALTY (a penalty/spot-kick line) is the decisive
+    evidence — converting a penalty ranks a player high even if their open-play
+    shots were missed or saved — while other mentions provide only a small nudge.
+    Works on whole commentary LINES so the 'penalty' word, the name and the
+    outcome stay together. Returns (score, pos, neg, mental)."""
+    lines = [ln for ln in commentary.split("\n") if ln.strip()]
     key = strip_accents(player).lower()
     toks = [t for t in key.split() if len(t) > 2] or [key]
-    pos = neg = mentions = 0
-    for s in sents:
-        sl = strip_accents(s).lower()
-        if any(t in sl for t in toks):
-            mentions += 1
-            pos += sum(1 for w in PEN_POS_CUES if w in sl)
-            neg += sum(1 for w in PEN_NEG_CUES if w in sl)
+    pen_pos = pen_neg = gen_pos = gen_neg = mentions = 0
+    for ln in lines:
+        ll = strip_accents(ln).lower()
+        if not any(t in ll for t in toks):
+            continue
+        mentions += 1
+        p = sum(1 for w in PEN_POS_CUES if w in ll)
+        n = sum(1 for w in PEN_NEG_CUES if w in ll)
+        if any(c in ll for c in PEN_CONTEXT):        # this line is about a penalty
+            pen_pos += p; pen_neg += n
+        else:                                        # open-play mention
+            gen_pos += p; gen_neg += n
     if mentions == 0:
         return 50.0, 0, 0, "NEUTRAL"
-    net = pos - neg
-    score = 50 + max(-45, min(45, net * 14))   # data-driven, scales with the cues found
-    mental = "POSITIVE" if pos > neg else "NEGATIVE" if neg > pos else "NEUTRAL"
-    return round(score, 1), pos, neg, mental
+    pen_net = pen_pos - pen_neg
+    gen_net = gen_pos - gen_neg
+    # penalty-context evidence dominates (±30 per net cue, capped ±42);
+    # open-play form only nudges the score (±4 per net cue, capped ±8)
+    score = 50 + max(-42, min(42, pen_net * 30)) + max(-8, min(8, gen_net * 4))
+    score = max(0.0, min(100.0, score))
+    total = pen_net * 3 + gen_net
+    mental = "POSITIVE" if total > 0 else "NEGATIVE" if total < 0 else "NEUTRAL"
+    return round(score, 1), pen_pos + gen_pos, pen_neg + gen_neg, mental
 
 
 def analyze_penalty(commentary, team=None, video_files=None, engine=None):
