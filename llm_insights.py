@@ -136,7 +136,8 @@ def penalty_history(names):
     Returns {name: {"reliability": "reliable"|"mixed"|"unreliable"|"unknown",
                     "note": "<short factual note>"}}.
     Returns {} when no LLM is configured (feature simply off)."""
-    names = [n for n in (names or []) if n and n.strip()]
+    import re as _re
+    names = [n for n in (names or []) if n and n.strip()][:24]  # cap so the reply fits
     if not names:
         return {}
     provider_name, api_key, base_url, default_model = _provider()
@@ -152,25 +153,46 @@ def penalty_history(names):
             "reputation (career/international penalties, notable makes or misses). "
             "Rate reliability as one of: reliable, mixed, unreliable, unknown. Be honest "
             "— use \"unknown\" if you are not confident, and do NOT invent statistics. "
-            "Reply ONLY with a JSON object mapping each exact name to an object "
-            "{\"reliability\": \"...\", \"note\": \"<one short phrase>\"}.\n\n" + listing
+            "Reply ONLY with a compact JSON object mapping each exact name to an object "
+            "{\"reliability\": \"...\", \"note\": \"<one short phrase>\"}. Keep each note "
+            "under 12 words.\n\n" + listing
         )
         resp = client.chat.completions.create(
             model=default_model,
             messages=[{"role": "system", "content": "You are a football penalty-history checker. Reply only with JSON; say 'unknown' rather than guessing."},
                       {"role": "user", "content": prompt}],
-            temperature=0.0, max_tokens=700,
+            temperature=0.0, max_tokens=1500,
         )
         txt = resp.choices[0].message.content.strip()
-        txt = txt[txt.find("{"):txt.rfind("}") + 1]
-        parsed = _json.loads(txt)
-        low = {k.lower(): v for k, v in parsed.items()}
+        if txt.startswith("```"):
+            txt = txt.strip("`")
+        core = txt[txt.find("{"): txt.rfind("}") + 1]
+
+        parsed = None
+        try:
+            parsed = _json.loads(core)
+        except Exception:
+            parsed = None
+
         out = {}
+        if isinstance(parsed, dict):
+            low = {k.lower(): v for k, v in parsed.items()}
+            for n in names:
+                v = parsed.get(n) or low.get(n.lower())
+                if isinstance(v, dict):
+                    out[n] = {"reliability": str(v.get("reliability", "unknown")).lower(),
+                              "note": str(v.get("note", "")).strip()}
+        # salvage: if full JSON failed or is partial, extract each name's object by regex
         for n in names:
-            v = parsed.get(n) or low.get(n.lower())
-            if isinstance(v, dict):
-                out[n] = {"reliability": str(v.get("reliability", "unknown")).lower(),
-                          "note": str(v.get("note", "")).strip()}
+            if n in out:
+                continue
+            m = _re.search(_re.escape(n) + r"\"\s*:\s*\{([^}]*)\}", txt)
+            if m:
+                blk = m.group(1)
+                rel = _re.search(r"reliability\"\s*:\s*\"([^\"]*)\"", blk)
+                note = _re.search(r"note\"\s*:\s*\"([^\"]*)\"", blk)
+                out[n] = {"reliability": (rel.group(1).lower() if rel else "unknown"),
+                          "note": (note.group(1).strip() if note else "")}
         return out
     except Exception:
         return {}

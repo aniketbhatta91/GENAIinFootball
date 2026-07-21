@@ -318,13 +318,15 @@ def analyze_penalty(commentary, team=None, video_files=None, engine=None):
     for r in results:
         r["outcome"] = outcomes.get(r["player"])
 
+    results.sort(key=lambda x: x["suitability"], reverse=True)
+
     # LLM look-up: each player's known penalty history/reputation not visible in
-    # this match's commentary (only when an LLM key is configured)
+    # this match's commentary (only when an LLM key is configured). Ranked list is
+    # passed first so the top candidates are always covered.
     history = llm_insights.penalty_history([r["player"] for r in results])
     for r in results:
         r["history"] = history.get(r["player"])
 
-    results.sort(key=lambda x: x["suitability"], reverse=True)
     evaluation = evaluate_penalty_run(results, outcomes)
 
     return {"results": results, "video_report": report,
