@@ -92,6 +92,17 @@ STOPWORDS = {"The", "A", "It", "Now", "And", "But", "In", "Min", "From", "To",
              "Goal", "Penalty", "Substitution", "Assisted", "Yellow", "Red",
              "Card", "Shot", "Offside", "Corner", "Foul", "Free", "Kick",
              "Full", "Second", "First", "Bad", "Clinical", "Strong", "Sharp",
+             # broadcast / officiating terms (never player names)
+             "VAR", "Decision", "Referee", "Ref", "Official", "Fourth", "Assistant",
+             "Video", "Replay", "Delay", "Handball", "Injury", "Break", "Drinks",
+             "Added", "Stoppage", "Extra", "Overtime", "Whistle", "Kickoff",
+             "Kick-off", "Lineups", "Lineup", "Booking", "Caution", "Advantage",
+             "Overturned", "Awarded", "Review", "Checking", "Checked", "Sponsor",
+             # national-team / country names used as team tags
+             "Germany", "Paraguay", "Brazil", "Croatia", "Argentina", "France",
+             "Spain", "England", "Portugal", "Italy", "Netherlands", "Belgium",
+             "Uruguay", "Colombia", "Mexico", "Japan", "Korea", "Morocco",
+             "Senegal", "Nigeria", "Ghana", "India", "Australia", "Switzerland",
              # football terms / phases of play (never player names)
              "Attack", "Attacking", "Defence", "Defense", "Defending", "Midfield",
              "Set", "Piece", "Long", "Short", "Counter", "Cross", "Build", "Press",
@@ -171,6 +182,24 @@ class ScoutingEngine:
                     players[name] = hits
             return players
 
+        # Strong signal: broadcast/ESPN feeds write every real player as
+        # "Name (Team)" — e.g. "Kai Havertz (Germany)". If any such tagged names
+        # exist we treat THAT as the authoritative player list, which cleanly
+        # excludes non-player phrases like "Fourth official", "VAR Decision",
+        # "Second Half" that never carry a team tag.
+        tagged_surnames = set()
+        tagged_full = set()
+        for m in re.finditer(
+                r"\b([A-ZÀ-Ý][a-zà-ÿ]+(?:\s+[A-ZÀ-Ý][a-zà-ÿ]+){0,2})\s*\(", commentary):
+            nm = m.group(1).strip()
+            words = nm.split()
+            if words[0] in STOPWORDS or words[-1] in STOPWORDS:
+                continue
+            if nm.lower() in TEAM_NAMES:
+                continue
+            tagged_full.add(nm)
+            tagged_surnames.add(words[-1])
+
         # auto-detect capitalised names
         counts: Dict[str, List[str]] = {}
         for s in sentences:
@@ -181,7 +210,14 @@ class ScoutingEngine:
                 if nm.lower() in TEAM_NAMES:
                     continue
                 counts.setdefault(nm, []).append(s.strip())
-        return {n: v for n, v in counts.items() if len(v) >= min_mentions}
+
+        result = {n: v for n, v in counts.items() if len(v) >= min_mentions}
+        # When the feed carries team tags, keep only confirmed players
+        # (exact match or shared surname with a tagged name).
+        if tagged_full:
+            result = {n: v for n, v in result.items()
+                      if n in tagged_full or n.split()[-1] in tagged_surnames}
+        return result
 
     # ---- attribute scoring -------------------------------------------
     def score_attributes(self, sentences: List[str]) -> Dict[str, float]:
