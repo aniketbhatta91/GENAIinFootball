@@ -39,6 +39,11 @@ SAMPLES = {
     "real_isl":           "real_isl_cupfinal_2025.txt",
     "ileague_commentary": "real_ileague_commentary.txt",
     "ileague_roster":     "real_ileague_roster.txt",
+    # penalty-shootout match transcripts (for the Penalty tab dropdown)
+    "croatia_full":       "croatia_brazil_2022_full_commentary.txt",
+    "croatia_shootout":   "croatia_brazil_2022_shootout.txt",
+    "germany_full":       "germany_paraguay_2026_full_commentary.txt",
+    "germany_shootout":   "germany_paraguay_2026_shootout.txt",
 }
 
 app = Flask(__name__)
@@ -933,10 +938,19 @@ Optional video signal: OpenCV motion analysis ─▶ composure score</div>
     <div class="grid">
       <div class="card">
         <label>Match commentary</label>
-        <textarea id="p_commentary" placeholder="Paste commentary, or load the demo..."></textarea>
-        <div class="chips">
-          <span class="chip" onclick="loadSample('penalty_demo','p_commentary')">Load PSG–Arsenal demo</span>
-          <span class="chip" onclick="loadSample('ileague_commentary','p_commentary')">Load REAL I-League match</span>
+        <textarea id="p_commentary" placeholder="Paste commentary, or pick a match below..."></textarea>
+        <div class="chips" style="align-items:center;gap:8px;">
+          <label style="margin:0;">Load a match transcript:</label>
+          <select id="p_sample" onchange="if(this.value){loadSample(this.value,'p_commentary');}"
+                  style="padding:8px 10px;border-radius:8px;">
+            <option value="">— select a match —</option>
+            <option value="germany_shootout">Germany 3–4 Paraguay 2026 — shootout only</option>
+            <option value="germany_full">Germany 1–1 Paraguay 2026 — full match</option>
+            <option value="croatia_shootout">Croatia 4–2 Brazil 2022 — shootout only</option>
+            <option value="croatia_full">Croatia 1–1 Brazil 2022 — full match</option>
+            <option value="penalty_demo">PSG–Arsenal demo</option>
+            <option value="ileague_commentary">REAL I-League match</option>
+          </select>
         </div>
         <label style="margin-top:10px;">…or upload commentary (.txt)</label>
         <input type="file" id="p_commentary_file" accept=".txt"/>
