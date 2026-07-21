@@ -130,6 +130,52 @@ def verify_players(names):
         return {n: "unverified" for n in names}
 
 
+def penalty_history(names):
+    """Look up each player's KNOWN penalty-taking history/reputation from the LLM's
+    knowledge — the record that is not visible in a single match's commentary.
+    Returns {name: {"reliability": "reliable"|"mixed"|"unreliable"|"unknown",
+                    "note": "<short factual note>"}}.
+    Returns {} when no LLM is configured (feature simply off)."""
+    names = [n for n in (names or []) if n and n.strip()]
+    if not names:
+        return {}
+    provider_name, api_key, base_url, default_model = _provider()
+    if provider_name is None:
+        return {}
+    try:
+        import json as _json
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key, base_url=base_url)
+        listing = "\n".join(f"- {n}" for n in names)
+        prompt = (
+            "For each footballer below, state their KNOWN penalty-taking history or "
+            "reputation (career/international penalties, notable makes or misses). "
+            "Rate reliability as one of: reliable, mixed, unreliable, unknown. Be honest "
+            "— use \"unknown\" if you are not confident, and do NOT invent statistics. "
+            "Reply ONLY with a JSON object mapping each exact name to an object "
+            "{\"reliability\": \"...\", \"note\": \"<one short phrase>\"}.\n\n" + listing
+        )
+        resp = client.chat.completions.create(
+            model=default_model,
+            messages=[{"role": "system", "content": "You are a football penalty-history checker. Reply only with JSON; say 'unknown' rather than guessing."},
+                      {"role": "user", "content": prompt}],
+            temperature=0.0, max_tokens=700,
+        )
+        txt = resp.choices[0].message.content.strip()
+        txt = txt[txt.find("{"):txt.rfind("}") + 1]
+        parsed = _json.loads(txt)
+        low = {k.lower(): v for k, v in parsed.items()}
+        out = {}
+        for n in names:
+            v = parsed.get(n) or low.get(n.lower())
+            if isinstance(v, dict):
+                out[n] = {"reliability": str(v.get("reliability", "unknown")).lower(),
+                          "note": str(v.get("note", "")).strip()}
+        return out
+    except Exception:
+        return {}
+
+
 def continental_insight(player, role, attributes, weaknesses=None, strengths=None, model=None):
     """Return a development-insight dict. Uses OpenAI if configured, else offline."""
     base = offline_insight(player, role, attributes, weaknesses, strengths)

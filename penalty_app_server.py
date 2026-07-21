@@ -317,12 +317,20 @@ def analyze_penalty(commentary, team=None, video_files=None, engine=None):
     outcomes = extract_penalty_outcomes(commentary, [r["player"] for r in results])
     for r in results:
         r["outcome"] = outcomes.get(r["player"])
+
+    # LLM look-up: each player's known penalty history/reputation not visible in
+    # this match's commentary (only when an LLM key is configured)
+    history = llm_insights.penalty_history([r["player"] for r in results])
+    for r in results:
+        r["history"] = history.get(r["player"])
+
     results.sort(key=lambda x: x["suitability"], reverse=True)
     evaluation = evaluate_penalty_run(results, outcomes)
 
     return {"results": results, "video_report": report,
             "recommended_order": [p["player"] for p in results if p["category"] == "RECOMMENDED"],
             "filtered_out": filtered_out, "evaluation": evaluation,
+            "history_active": bool(history),
             "verification_active": llm_insights.llm_configured()}
 
 
@@ -711,6 +719,11 @@ INDEX_HTML = r"""
   .ob { font-size:11px; font-weight:700; border-radius:999px; padding:1px 8px; white-space:nowrap; }
   .ob.ok { color:var(--green); background:rgba(40,209,124,.14); }
   .ob.no { color:var(--red); background:rgba(255,93,93,.14); }
+  .relchip { font-size:10.5px; font-weight:700; border-radius:999px; padding:1px 7px; text-transform:uppercase; margin-right:6px; white-space:nowrap; }
+  .relchip.ok { color:var(--green); background:rgba(40,209,124,.15); }
+  .relchip.mid { color:var(--amber); background:rgba(245,176,66,.15); }
+  .relchip.no { color:var(--red); background:rgba(255,93,93,.15); }
+  .relchip.mut { color:var(--mut); background:rgba(159,176,208,.12); }
   /* match simulator timeline */
   .timeline { display:flex; flex-direction:column; gap:8px; }
   .sim-ev { display:flex; gap:12px; background:var(--card); border:1px solid var(--line);
@@ -1192,6 +1205,14 @@ function outcomeBadge(o){
   if(o==='missed') return ' <span class="ob no">❌ missed</span>';
   return '';
 }
+function historyCell(hh){
+  if(!hh) return '<span style="color:var(--mut)">—</span>';
+  const rel=(hh.reliability||'unknown').toLowerCase();
+  const cls={reliable:'ok', mixed:'mid', unreliable:'no', unknown:'mut'}[rel]||'mut';
+  const chip='<span class="relchip '+cls+'">'+rel+'</span>';
+  const note=hh.note?(' '+hh.note):'';
+  return chip+'<span style="font-size:12.5px;color:#cdd8ee;">'+note+'</span>';
+}
 async function runPenalty(){
   const err=document.getElementById('p_err'); err.textContent=''; document.getElementById('p_out').innerHTML='';
   const fd=new FormData();
@@ -1204,11 +1225,12 @@ async function runPenalty(){
     h+='<div class="order"><b>Suggested taker order:</b> '+d.recommended_order.map((n,i)=>(i+1)+'. '+n).join('   ')+'</div>';
   if(d.filtered_out&&d.filtered_out.length)
     h+='<div class="vid" style="margin-bottom:10px;">Filtered out (not recognised as real footballers): '+d.filtered_out.join(', ')+'</div>';
-  h+='<div class="card"><table><thead><tr><th>#</th><th>Player</th><th>Suitability</th><th>Verdict</th><th>Pen record</th><th>Mental</th><th>Actual</th></tr></thead><tbody>';
+  const histHead = d.history_active ? '<th>Penalty history (LLM)</th>' : '';
+  h+='<div class="card"><table><thead><tr><th>#</th><th>Player</th><th>Suitability</th><th>Verdict</th><th>Mental</th><th>Actual</th>'+histHead+'</tr></thead><tbody>';
   d.results.forEach((p,i)=>{ h+=`<tr><td>${i+1}</td><td><span class="pname" data-player="${p.player}">${p.player}</span> ${p.video_used?'<span class="vtag">●vid</span>':''}${p.known?'':' <span class="vtag" style="color:var(--mut)">new</span>'}</td>
     <td><div style="display:flex;align-items:center;gap:8px;"><div class="bar"><span style="width:${p.suitability}%"></span></div><b>${p.suitability}</b></div></td>
-    <td><span class="pill ${p.category}">${p.category}</span></td><td>${p.pen_record}</td><td>${p.mental_state}</td><td>${outcomeBadge(p.outcome)||'<span style="color:var(--mut)">—</span>'}</td></tr>`; });
-  h+='</tbody></table>'+videoBlock(d.video_report)+'</div>';
+    <td><span class="pill ${p.category}">${p.category}</span></td><td>${p.mental_state}</td><td>${outcomeBadge(p.outcome)||'<span style="color:var(--mut)">—</span>'}</td>${d.history_active?('<td>'+historyCell(p.history)+'</td>'):''}</tr>`; });
+  h+='</tbody></table>'+(d.history_active?'<div class="hint" style="margin-top:6px;">Penalty history is retrieved from the LLM (Groq/OpenAI) from its general knowledge — it is not in this match\'s commentary, and may be approximate.</div>':'')+videoBlock(d.video_report)+'</div>';
   // accuracy evaluation vs actual outcomes from the commentary
   const ev=d.evaluation;
   if(ev && ev.n_with_outcome>0){
