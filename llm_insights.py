@@ -198,6 +198,59 @@ def penalty_history(names):
         return {}
 
 
+def penalty_scores(names, commentary):
+    """Ask the LLM to rate each player's penalty-taking suitability 0-100 from the
+    commentary. Returns {name: float}; {} when no LLM key is configured."""
+    import re as _re
+    names = [n for n in (names or []) if n and n.strip()][:24]
+    if not names:
+        return {}
+    provider_name, api_key, base_url, default_model = _provider()
+    if provider_name is None:
+        return {}
+    try:
+        import json as _json
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key, base_url=base_url)
+        listing = ", ".join(names)
+        prompt = (
+            "From the football commentary below, rate each listed player's PENALTY-TAKING "
+            "suitability from 0 to 100 (100 = very reliable from the spot), based on composure, "
+            "finishing, and any penalty/spot-kick moments described. If a player is barely "
+            "mentioned, use 50. Reply ONLY with a JSON object mapping each exact name to an "
+            "integer 0-100.\n\nPlayers: " + listing + "\n\nCommentary:\n" + (commentary or "")[:6000]
+        )
+        resp = client.chat.completions.create(
+            model=default_model,
+            messages=[{"role": "system", "content": "You are a football penalty analyst. Reply only with JSON."},
+                      {"role": "user", "content": prompt}],
+            temperature=0.0, max_tokens=800,
+        )
+        txt = resp.choices[0].message.content.strip()
+        core = txt[txt.find("{"): txt.rfind("}") + 1]
+        try:
+            parsed = _json.loads(core)
+        except Exception:
+            parsed = {}
+        low = {str(k).lower(): v for k, v in parsed.items()} if isinstance(parsed, dict) else {}
+        out = {}
+        for n in names:
+            v = parsed.get(n) if isinstance(parsed, dict) else None
+            if v is None:
+                v = low.get(n.lower())
+            if v is None:
+                m = _re.search(_re.escape(n) + r"\"\s*:\s*(\d+)", txt)
+                v = m.group(1) if m else None
+            try:
+                if v is not None:
+                    out[n] = max(0.0, min(100.0, float(v)))
+            except Exception:
+                pass
+        return out
+    except Exception:
+        return {}
+
+
 def continental_insight(player, role, attributes, weaknesses=None, strengths=None, model=None):
     """Return a development-insight dict. Uses OpenAI if configured, else offline."""
     base = offline_insight(player, role, attributes, weaknesses, strengths)

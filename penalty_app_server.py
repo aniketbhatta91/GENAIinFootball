@@ -351,6 +351,244 @@ EMBEDDED_MATCHES = [
                 ("England","Hargreaves","scored"),("Portugal","Viana","saved"),
                 ("England","Gerrard","saved"),("Portugal","Postiga","scored"),
                 ("England","Carragher","saved"),("Portugal","Ronaldo","scored")]),
+    dict(match_id="WC2026_R32_GER_PAR", competition="FIFA World Cup 2026", stage="Round of 32",
+         date="29 June 2026", venue="Gillette Stadium, Boston, United States",
+         home="Germany", away="Paraguay", ft="1-1", so="3-4", winner="Paraguay",
+         gk_home="Manuel Neuer (Germany)", gk_away="Orlando Gill (Paraguay)",
+         goals=[(42,"Paraguay","Julio Enciso","header"),(54,"Germany","Kai Havertz","equaliser")],
+         shoot=[("Germany","Havertz","saved"),("Paraguay","Mauricio","scored"),
+                ("Germany","Kimmich","scored"),("Paraguay","Gómez","scored"),
+                ("Germany","Musiala","scored"),("Paraguay","Galarza","scored"),
+                ("Germany","Woltemade","saved"),("Paraguay","Sanabria","missed"),
+                ("Germany","Amiri","scored"),("Paraguay","Balbuena","saved"),
+                ("Germany","Tah","missed"),("Paraguay","Canale","scored")]),
+    dict(match_id="WC2002_R16_ESP_IRL", competition="FIFA World Cup 2002", stage="Round of 16",
+         date="16 June 2002", venue="Suwon World Cup Stadium, Suwon, South Korea",
+         home="Spain", away="Republic of Ireland", ft="1-1", so="3-2", winner="Spain",
+         gk_home="Iker Casillas (Spain)", gk_away="Shay Given (Republic of Ireland)",
+         goals=[],
+         shoot=[("Spain","Hierro","scored"),("Republic of Ireland","Holland","saved"),
+                ("Spain","Baraja","scored"),("Republic of Ireland","Connolly","saved"),
+                ("Spain","Juanfran","missed"),("Republic of Ireland","Kilbane","saved"),
+                ("Spain","Valerón","missed"),("Republic of Ireland","Finnan","scored"),
+                ("Spain","Mendieta","scored"),("Republic of Ireland","Robbie Keane","scored")]),
+    dict(match_id="WC2002_QF_KOR_ESP", competition="FIFA World Cup 2002", stage="Quarter-final",
+         date="22 June 2002", venue="Gwangju World Cup Stadium, Gwangju, South Korea",
+         home="South Korea", away="Spain", ft="0-0", so="5-3", winner="South Korea",
+         gk_home="Lee Woon-jae (South Korea)", gk_away="Iker Casillas (Spain)",
+         goals=[],
+         shoot=[("Spain","Hierro","scored"),("South Korea","Hwang Sun-hong","scored"),
+                ("Spain","Baraja","scored"),("South Korea","Park Ji-sung","scored"),
+                ("Spain","Xavi","scored"),("South Korea","Seol Ki-hyeon","scored"),
+                ("Spain","Joaquín","saved"),("South Korea","Ahn Jung-hwan","scored"),
+                ("South Korea","Hong Myung-bo","scored")]),
+    dict(match_id="WC1998_R16_ARG_ENG", competition="FIFA World Cup 1998", stage="Round of 16",
+         date="30 June 1998", venue="Stade Geoffroy-Guichard, Saint-Étienne, France",
+         home="Argentina", away="England", ft="2-2", so="4-3", winner="Argentina",
+         gk_home="Carlos Roa (Argentina)", gk_away="David Seaman (England)",
+         goals=[],
+         shoot=[("Argentina","Berti","scored"),("England","Shearer","scored"),
+                ("Argentina","Crespo","saved"),("England","Ince","saved"),
+                ("Argentina","Verón","scored"),("England","Merson","scored"),
+                ("Argentina","Gallardo","scored"),("England","Owen","scored"),
+                ("Argentina","Ayala","scored"),("England","Batty","saved")]),
+    dict(match_id="WC1998_QF_FRA_ITA", competition="FIFA World Cup 1998", stage="Quarter-final",
+         date="3 July 1998", venue="Stade de France, Saint-Denis, France",
+         home="France", away="Italy", ft="0-0", so="4-3", winner="France",
+         gk_home="Fabien Barthez (France)", gk_away="Gianluca Pagliuca (Italy)",
+         goals=[],
+         shoot=[("Italy","R. Baggio","scored"),("France","Zidane","scored"),
+                ("Italy","Albertini","saved"),("France","Lizarazu","saved"),
+                ("Italy","Costacurta","scored"),("France","Trezeguet","scored"),
+                ("Italy","Vieri","scored"),("France","Henry","scored"),
+                ("Italy","Di Biagio","missed"),("France","Blanc","scored")]),
+    dict(match_id="WC1994_F_BRA_ITA", competition="FIFA World Cup 1994", stage="Final",
+         date="17 July 1994", venue="Rose Bowl, Pasadena, United States",
+         home="Brazil", away="Italy", ft="0-0", so="3-2", winner="Brazil",
+         gk_home="Cláudio Taffarel (Brazil)", gk_away="Gianluca Pagliuca (Italy)",
+         goals=[],
+         shoot=[("Italy","Baresi","missed"),("Brazil","Márcio Santos","saved"),
+                ("Italy","Albertini","scored"),("Brazil","Romário","scored"),
+                ("Italy","Evani","scored"),("Brazil","Branco","scored"),
+                ("Italy","Massaro","saved"),("Brazil","Dunga","scored"),
+                ("Italy","R. Baggio","missed")]),
+    dict(match_id="WC1990_SF_ARG_ITA", competition="FIFA World Cup 1990", stage="Semi-final",
+         date="3 July 1990", venue="Stadio San Paolo, Naples, Italy",
+         home="Argentina", away="Italy", ft="1-1", so="4-3", winner="Argentina",
+         gk_home="Sergio Goycochea (Argentina)", gk_away="Walter Zenga (Italy)",
+         goals=[],
+         shoot=[("Argentina","Serrizuela","scored"),("Italy","R. Baggio","scored"),
+                ("Argentina","Burruchaga","scored"),("Italy","Baresi","scored"),
+                ("Argentina","Olarticoechea","scored"),("Italy","De Agostini","scored"),
+                ("Argentina","Maradona","scored"),("Italy","Donadoni","saved"),
+                ("Italy","Serena","saved")]),
+    dict(match_id="WC1990_SF_FRG_ENG", competition="FIFA World Cup 1990", stage="Semi-final",
+         date="4 July 1990", venue="Stadio delle Alpi, Turin, Italy",
+         home="West Germany", away="England", ft="1-1", so="4-3", winner="West Germany",
+         gk_home="Bodo Illgner (West Germany)", gk_away="Peter Shilton (England)",
+         goals=[],
+         shoot=[("West Germany","Brehme","scored"),("England","Lineker","scored"),
+                ("West Germany","Matthäus","scored"),("England","Beardsley","scored"),
+                ("West Germany","Riedle","scored"),("England","Platt","scored"),
+                ("West Germany","Thon","scored"),("England","Pearce","saved"),
+                ("England","Waddle","missed")]),
+    dict(match_id="EURO2016_QF_POL_POR", competition="UEFA Euro 2016", stage="Quarter-final",
+         date="30 June 2016", venue="Stade Vélodrome, Marseille, France",
+         home="Poland", away="Portugal", ft="1-1", so="3-5", winner="Portugal",
+         gk_home="Łukasz Fabiański (Poland)", gk_away="Rui Patrício (Portugal)",
+         goals=[],
+         shoot=[("Poland","Lewandowski","scored"),("Portugal","Quaresma","scored"),
+                ("Poland","Milik","scored"),("Portugal","João Moutinho","scored"),
+                ("Poland","Glik","scored"),("Portugal","Nani","scored"),
+                ("Poland","Błaszczykowski","saved"),("Portugal","Sánchez","scored"),
+                ("Portugal","Ronaldo","scored")]),
+    dict(match_id="EURO2016_R16_SUI_POL", competition="UEFA Euro 2016", stage="Round of 16",
+         date="25 June 2016", venue="Stade Geoffroy-Guichard, Saint-Étienne, France",
+         home="Switzerland", away="Poland", ft="1-1", so="4-5", winner="Poland",
+         gk_home="Yann Sommer (Switzerland)", gk_away="Łukasz Fabiański (Poland)",
+         goals=[],
+         shoot=[("Poland","Lewandowski","scored"),("Switzerland","Shaqiri","scored"),
+                ("Poland","Milik","scored"),("Switzerland","Xhaka","saved"),
+                ("Poland","Glik","scored"),("Switzerland","Schär","scored"),
+                ("Poland","Kapustka","scored"),("Switzerland","Ricardo Rodríguez","scored"),
+                ("Poland","Grosicki","scored"),("Switzerland","Fernandes","scored")]),
+    dict(match_id="EURO2012_SF_POR_ESP", competition="UEFA Euro 2012", stage="Semi-final",
+         date="27 June 2012", venue="Donbass Arena, Donetsk, Ukraine",
+         home="Portugal", away="Spain", ft="0-0", so="2-4", winner="Spain",
+         gk_home="Rui Patrício (Portugal)", gk_away="Iker Casillas (Spain)",
+         goals=[],
+         shoot=[("Portugal","João Moutinho","saved"),("Spain","Xabi Alonso","saved"),
+                ("Portugal","Pepe","scored"),("Spain","Iniesta","scored"),
+                ("Portugal","Nani","scored"),("Spain","Piqué","scored"),
+                ("Portugal","Bruno Alves","missed"),("Spain","Ramos","scored"),
+                ("Spain","Fàbregas","scored")]),
+    dict(match_id="EURO2012_SF_ITA_ENG", competition="UEFA Euro 2012", stage="Quarter-final",
+         date="24 June 2012", venue="Olympic Stadium, Kyiv, Ukraine",
+         home="Italy", away="England", ft="0-0", so="4-2", winner="Italy",
+         gk_home="Gianluigi Buffon (Italy)", gk_away="Joe Hart (England)",
+         goals=[],
+         shoot=[("Italy","Balotelli","scored"),("England","Gerrard","scored"),
+                ("Italy","Montolivo","missed"),("England","Rooney","scored"),
+                ("Italy","Pirlo","scored"),("England","Young","missed"),
+                ("Italy","Nocerino","scored"),("England","Cole","saved"),
+                ("Italy","Diamanti","scored")]),
+    dict(match_id="EURO2008_QF_ESP_ITA", competition="UEFA Euro 2008", stage="Quarter-final",
+         date="22 June 2008", venue="Ernst-Happel-Stadion, Vienna, Austria",
+         home="Spain", away="Italy", ft="0-0", so="4-2", winner="Spain",
+         gk_home="Iker Casillas (Spain)", gk_away="Gianluigi Buffon (Italy)",
+         goals=[],
+         shoot=[("Italy","Grosso","scored"),("Spain","Villa","scored"),
+                ("Italy","De Rossi","scored"),("Spain","Cazorla","saved"),
+                ("Italy","Camoranesi","saved"),("Spain","Senna","scored"),
+                ("Italy","Di Natale","saved"),("Spain","Güiza","scored"),
+                ("Spain","Fàbregas","scored")]),
+    dict(match_id="EURO2004_QF_POR_ENG", competition="UEFA Euro 2004", stage="Quarter-final",
+         date="24 June 2004", venue="Estádio da Luz, Lisbon, Portugal",
+         home="Portugal", away="England", ft="2-2", so="6-5", winner="Portugal",
+         gk_home="Ricardo (Portugal)", gk_away="David James (England)",
+         goals=[],
+         shoot=[("England","Beckham","missed"),("Portugal","Deco","scored"),
+                ("England","Owen","scored"),("Portugal","Simão","scored"),
+                ("England","Lampard","scored"),("Portugal","Rui Costa","missed"),
+                ("England","Terry","scored"),("Portugal","Ronaldo","scored"),
+                ("England","Hargreaves","scored"),("Portugal","Maniche","scored"),
+                ("England","Cole","scored"),("Portugal","Postiga","scored"),
+                ("England","Vassell","saved"),("Portugal","Ricardo","scored")]),
+    dict(match_id="EURO2000_SF_ITA_NED", competition="UEFA Euro 2000", stage="Semi-final",
+         date="29 June 2000", venue="Amsterdam Arena, Amsterdam, Netherlands",
+         home="Italy", away="Netherlands", ft="0-0", so="3-1", winner="Italy",
+         gk_home="Francesco Toldo (Italy)", gk_away="Edwin van der Sar (Netherlands)",
+         goals=[],
+         shoot=[("Netherlands","Frank de Boer","saved"),("Italy","Di Biagio","scored"),
+                ("Netherlands","Stam","missed"),("Italy","Pessotto","scored"),
+                ("Netherlands","Kluivert","scored"),("Italy","Totti","scored"),
+                ("Netherlands","Bosvelt","saved")]),
+    dict(match_id="EURO1996_SF_FRG_ENG", competition="UEFA Euro 1996", stage="Semi-final",
+         date="26 June 1996", venue="Wembley Stadium, London, England",
+         home="West Germany", away="England", ft="1-1", so="6-5", winner="West Germany",
+         gk_home="Andreas Köpke (West Germany)", gk_away="David Seaman (England)",
+         goals=[],
+         shoot=[("England","Shearer","scored"),("West Germany","Häßler","scored"),
+                ("England","Platt","scored"),("West Germany","Strunz","scored"),
+                ("England","Pearce","scored"),("West Germany","Reuter","scored"),
+                ("England","Gascoigne","scored"),("West Germany","Ziege","scored"),
+                ("England","Sheringham","scored"),("West Germany","Kuntz","scored"),
+                ("England","Southgate","saved"),("West Germany","Möller","scored")]),
+    dict(match_id="EURO1976_F_TCH_FRG", competition="UEFA Euro 1976", stage="Final",
+         date="20 June 1976", venue="Stadion Crvena Zvezda, Belgrade, Yugoslavia",
+         home="Czechoslovakia", away="West Germany", ft="2-2", so="5-3", winner="Czechoslovakia",
+         gk_home="Ivo Viktor (Czechoslovakia)", gk_away="Sepp Maier (West Germany)",
+         goals=[],
+         shoot=[("Czechoslovakia","Masný","scored"),("West Germany","Bonhof","scored"),
+                ("Czechoslovakia","Nehoda","scored"),("West Germany","Flohe","scored"),
+                ("Czechoslovakia","Ondruš","scored"),("West Germany","Bongartz","scored"),
+                ("Czechoslovakia","Jurkemik","scored"),("West Germany","Hoeneß","missed"),
+                ("Czechoslovakia","Panenka","scored")]),
+    dict(match_id="COPA2015_F_CHI_ARG", competition="Copa América 2015", stage="Final",
+         date="4 July 2015", venue="Estadio Nacional, Santiago, Chile",
+         home="Chile", away="Argentina", ft="0-0", so="4-1", winner="Chile",
+         gk_home="Claudio Bravo (Chile)", gk_away="Sergio Romero (Argentina)",
+         goals=[],
+         shoot=[("Chile","Matías Fernández","scored"),("Argentina","Messi","scored"),
+                ("Chile","Vidal","scored"),("Argentina","Higuaín","missed"),
+                ("Chile","Aránguiz","scored"),("Argentina","Banega","saved"),
+                ("Chile","Alexis Sánchez","scored")]),
+    dict(match_id="COPA2021_SF_ARG_COL", competition="Copa América 2021", stage="Semi-final",
+         date="6 July 2021", venue="Estádio Nacional Mané Garrincha, Brasília, Brazil",
+         home="Argentina", away="Colombia", ft="1-1", so="3-2", winner="Argentina",
+         gk_home="Emiliano Martínez (Argentina)", gk_away="David Ospina (Colombia)",
+         goals=[],
+         shoot=[("Colombia","Cuadrado","scored"),("Argentina","Messi","scored"),
+                ("Colombia","Sánchez","saved"),("Argentina","Argentina taker 2","scored"),
+                ("Colombia","Mina","saved"),("Argentina","Argentina taker 3","scored"),
+                ("Colombia","Cardona","saved"),("Colombia","Borja","scored")]),
+    dict(match_id="COPA2024_QF_URU_BRA", competition="Copa América 2024", stage="Quarter-final",
+         date="6 July 2024", venue="Allegiant Stadium, Las Vegas, United States",
+         home="Uruguay", away="Brazil", ft="0-0", so="4-2", winner="Uruguay",
+         gk_home="Sergio Rochet (Uruguay)", gk_away="Alisson (Brazil)",
+         goals=[],
+         shoot=[("Uruguay","Uruguay taker 1","scored"),("Brazil","Éder Militão","saved"),
+                ("Uruguay","Uruguay taker 2","scored"),("Brazil","Douglas Luiz","saved"),
+                ("Uruguay","Uruguay taker 3","scored"),("Brazil","Brazil taker 3","scored"),
+                ("Uruguay","Uruguay taker 4","scored"),("Brazil","Brazil taker 4","scored")]),
+    dict(match_id="COPA2024_QF_ARG_ECU", competition="Copa América 2024", stage="Quarter-final",
+         date="4 July 2024", venue="NRG Stadium, Houston, United States",
+         home="Argentina", away="Ecuador", ft="1-1", so="4-2", winner="Argentina",
+         gk_home="Emiliano Martínez (Argentina)", gk_away="Alexander Domínguez (Ecuador)",
+         goals=[],
+         shoot=[("Ecuador","Ecuador taker 1","saved"),("Argentina","Messi","missed"),
+                ("Ecuador","Ecuador taker 2","scored"),("Argentina","Argentina taker 2","scored"),
+                ("Ecuador","Ecuador taker 3","saved"),("Argentina","Argentina taker 3","scored"),
+                ("Ecuador","Ecuador taker 4","scored"),("Argentina","Argentina taker 4","scored"),
+                ("Argentina","Argentina taker 5","scored")]),
+    dict(match_id="AFCON2021_F_SEN_EGY", competition="Africa Cup of Nations 2021", stage="Final",
+         date="6 February 2022", venue="Stade d'Olembé, Yaoundé, Cameroon",
+         home="Senegal", away="Egypt", ft="0-0", so="4-2", winner="Senegal",
+         gk_home="Édouard Mendy (Senegal)", gk_away="Mohamed Abou Gabal (Egypt)",
+         goals=[],
+         shoot=[("Egypt","Egypt taker 1","saved"),("Senegal","Senegal taker 1","scored"),
+                ("Egypt","Egypt taker 2","scored"),("Senegal","Senegal taker 2","scored"),
+                ("Egypt","Egypt taker 3","saved"),("Senegal","Senegal taker 3","scored"),
+                ("Egypt","Egypt taker 4","scored"),("Senegal","Mané","scored")]),
+    dict(match_id="AFCON2006_F_EGY_CIV", competition="Africa Cup of Nations 2006", stage="Final",
+         date="10 February 2006", venue="Cairo International Stadium, Cairo, Egypt",
+         home="Egypt", away="Ivory Coast", ft="0-0", so="4-2", winner="Egypt",
+         gk_home="Essam El-Hadary (Egypt)", gk_away="Jean-Jacques Tizié (Ivory Coast)",
+         goals=[],
+         shoot=[("Ivory Coast","Drogba","missed"),("Egypt","Egypt taker 1","scored"),
+                ("Ivory Coast","Ivory Coast taker 2","scored"),("Egypt","Egypt taker 2","scored"),
+                ("Ivory Coast","Ivory Coast taker 3","saved"),("Egypt","Egypt taker 3","scored"),
+                ("Ivory Coast","Ivory Coast taker 4","scored"),("Egypt","Egypt taker 4","scored")]),
+    dict(match_id="UCL1984_F_LIV_ROM", competition="European Cup 1984", stage="Final",
+         date="30 May 1984", venue="Stadio Olimpico, Rome, Italy",
+         home="Liverpool", away="Roma", ft="1-1", so="4-2", winner="Liverpool",
+         gk_home="Bruce Grobbelaar (Liverpool)", gk_away="Franco Tancredi (Roma)",
+         goals=[],
+         shoot=[("Liverpool","Nicol","missed"),("Roma","Di Bartolomei","scored"),
+                ("Liverpool","Neal","scored"),("Roma","Conti","missed"),
+                ("Liverpool","Souness","scored"),("Roma","Righetti","scored"),
+                ("Liverpool","Rush","scored"),("Roma","Graziani","missed"),
+                ("Liverpool","Kennedy","scored")]),
 ]
 
 def _embedded_by_id():
@@ -661,7 +899,57 @@ def commentary_penalty_score(commentary, player):
     return round(score, 1), pen_pos + gen_pos, pen_neg + gen_neg, mental
 
 
-def analyze_penalty(commentary, team=None, video_files=None, engine=None, db_outcomes=None):
+# ─────────── alternative penalty-scoring models (selectable in the UI) ───────────
+_ROBERTA = {"pipe": None, "tried": False}
+def _roberta_pipe():
+    if not _ROBERTA["tried"]:
+        _ROBERTA["tried"] = True
+        try:
+            from transformers import pipeline
+            _ROBERTA["pipe"] = pipeline(
+                "sentiment-analysis",
+                model="cardiffnlp/twitter-roberta-base-sentiment-latest")
+        except Exception:
+            _ROBERTA["pipe"] = None
+    return _ROBERTA["pipe"]
+
+def roberta_available():
+    return _roberta_pipe() is not None
+
+def roberta_penalty_score(commentary, player):
+    """RoBERTa transformer sentiment over the player's commentary lines, with
+    penalty-context lines weighted more heavily. Falls back to the offline scorer
+    if `transformers`/`torch` are not installed."""
+    pipe = _roberta_pipe()
+    if pipe is None:
+        return commentary_penalty_score(commentary, player)
+    lines = [ln for ln in commentary.split("\n") if ln.strip()]
+    key = strip_accents(player).lower()
+    toks = [t for t in key.split() if len(t) > 2] or [key]
+    rel = [ln for ln in lines if any(t in strip_accents(ln).lower() for t in toks)]
+    if not rel:
+        return 50.0, 0, 0, "NEUTRAL"
+    signal = wsum = 0.0; pos = neg = 0
+    for ln in rel:
+        w = 3.0 if any(c in strip_accents(ln).lower() for c in PEN_CONTEXT) else 1.0
+        try:
+            r = pipe(ln[:480])[0]
+        except Exception:
+            continue
+        lbl = str(r.get("label", "")).lower(); conf = float(r.get("score", 0))
+        v = conf if lbl.startswith("pos") else (-conf if lbl.startswith("neg") else 0.0)
+        if v > 0: pos += 1
+        elif v < 0: neg += 1
+        signal += w * v; wsum += w
+    if wsum == 0:
+        return commentary_penalty_score(commentary, player)
+    avg = signal / wsum
+    score = max(0.0, min(100.0, 50 + avg * 50))
+    mental = "POSITIVE" if avg > 0.1 else "NEGATIVE" if avg < -0.1 else "NEUTRAL"
+    return round(score, 1), pos, neg, mental
+
+
+def analyze_penalty(commentary, team=None, video_files=None, engine=None, db_outcomes=None, pen_model="offline"):
     """Build the penalty-taker list ENTIRELY from the entered commentary: each
     player's score reflects how the commentary describes them (positive vs negative
     penalty cues). A known player's real penalty record nudges it slightly, and a
@@ -681,6 +969,17 @@ def analyze_penalty(commentary, team=None, video_files=None, engine=None, db_out
     filtered_out = [n for n in detected if verify.get(n) == "unknown"]
     kept = [n for n in detected if verify.get(n) != "unknown"]
 
+    # ── selected scoring model (offline rule-based / RoBERTa / LLM) ──
+    pen_model = (pen_model or "offline").lower()
+    model_fell_back = False
+    llm_scores = {}
+    if pen_model == "roberta" and not roberta_available():
+        model_fell_back = True                      # transformers/torch not installed
+    if pen_model == "llm":
+        llm_scores = llm_insights.penalty_scores(kept, commentary)
+        if not llm_scores:
+            model_fell_back = True                  # no LLM key configured
+
     results = []
     for name in kept:
         key = name.strip().lower()
@@ -688,8 +987,20 @@ def analyze_penalty(commentary, team=None, video_files=None, engine=None, db_out
         if team and base and base.get("team", "").lower() != team.lower():
             continue
 
-        # 1) the score comes from analysing the commentary text for this player
-        score, pos, neg, mental = commentary_penalty_score(commentary, name)
+        # 1) the score comes from the SELECTED model analysing the commentary
+        if pen_model == "roberta":
+            score, pos, neg, mental = roberta_penalty_score(commentary, name)
+        elif pen_model == "llm" and llm_scores:
+            sc = llm_scores.get(name) or next(
+                (v for k, v in llm_scores.items()
+                 if k.split()[-1].lower() == name.split()[-1].lower()), None)
+            if sc is not None:
+                score = float(sc); pos = neg = 0
+                mental = "POSITIVE" if score >= 60 else "NEGATIVE" if score < 40 else "NEUTRAL"
+            else:
+                score, pos, neg, mental = commentary_penalty_score(commentary, name)
+        else:
+            score, pos, neg, mental = commentary_penalty_score(commentary, name)
 
         # 2) optional video composure nudges it (also data, not fixed)
         vk = next((k for k in cmap if k in key or key.split()[-1] == k), None)
@@ -743,10 +1054,17 @@ def analyze_penalty(commentary, team=None, video_files=None, engine=None, db_out
     evaluation = evaluate_penalty_run(results, outcomes)
     evaluation["source"] = outcome_source
 
+    _mnames = {"offline": "Offline rule-based", "roberta": "RoBERTa (transformer)",
+               "llm": "LLM (Groq/OpenAI)"}
+    model_label = _mnames.get(pen_model, pen_model)
+    if model_fell_back:
+        model_label += " → fell back to offline (model not available)"
+
     return {"results": results, "video_report": report,
             "recommended_order": [p["player"] for p in results if p["category"] == "RECOMMENDED"],
             "filtered_out": filtered_out, "evaluation": evaluation,
             "history_active": bool(history),
+            "model_used": pen_model, "model_label": model_label,
             "verification_active": llm_insights.llm_configured()}
 
 
@@ -870,12 +1188,14 @@ def analyze():
     commentary = read_commentary()
     team = (request.form.get("team") or "").strip() or None
     match_id = (request.form.get("match_id") or "").strip()
+    pen_model = (request.form.get("pen_model") or "offline").strip()
     db_outcomes = db_actual_outcomes(match_id) if match_id else None
     if len(commentary) < 20:
         return jsonify({"error": "Please provide at least a few lines of commentary."}), 400
     videos = save_uploaded_videos(request.files.getlist("videos"))
     return jsonify(analyze_penalty(commentary, team=team, video_files=videos,
-                                   engine=build_penalty_engine(), db_outcomes=db_outcomes))
+                                   engine=build_penalty_engine(), db_outcomes=db_outcomes,
+                                   pen_model=pen_model))
 
 
 @app.route("/db_matches")
@@ -1382,6 +1702,13 @@ Optional video signal: OpenCV motion analysis ─▶ composure score</div>
         <input type="file" id="p_videos" accept="video/*" multiple/>
         <div class="hint">Name clips after players, e.g. <b>Havertz.mp4</b>, to read composure.</div>
         <div class="hint" style="margin-top:10px;">The list is built from the players named in your commentary. Names the LLM doesn't recognise as real footballers are dropped, and if the commentary says who scored/missed, the output is scored for accuracy.</div>
+        <label style="margin-top:10px;">Scoring model</label>
+        <select id="p_model" style="padding:8px 10px;border-radius:8px;min-width:280px;">
+          <option value="offline">Offline rule-based (default, fast)</option>
+          <option value="roberta">RoBERTa transformer (needs transformers + torch)</option>
+          <option value="llm">LLM — Groq/OpenAI (needs API key)</option>
+        </select>
+        <div class="hint" style="margin-top:4px;">Pick which model scores penalty suitability. RoBERTa and LLM aim for higher accuracy; if a model isn't installed/configured the app falls back to offline and tells you.</div>
         <button class="go" id="p_go" onclick="runPenalty()">Get penalty list</button>
         <div id="p_err" class="err"></div>
       </div>
@@ -1676,11 +2003,14 @@ async function runPenalty(){
   const fd=new FormData();
   fd.append('commentary', document.getElementById('p_commentary').value);
   if(currentMatchId) fd.append('match_id', currentMatchId);
+  fd.append('pen_model', document.getElementById('p_model').value);
   const cf=document.getElementById('p_commentary_file').files[0]; if(cf) fd.append('commentary_file', cf);
   for(const v of document.getElementById('p_videos').files) fd.append('videos', v);
   penaltySettings(fd);
   const d=await post('/analyze', fd, document.getElementById('p_go'), '', err); if(!d) return;
-  let h=''; if(d.recommended_order&&d.recommended_order.length)
+  let h=''; if(d.model_label)
+    h+='<div class="order" style="background:#12294a;"><b>Scoring model:</b> '+d.model_label+'</div>';
+  if(d.recommended_order&&d.recommended_order.length)
     h+='<div class="order"><b>Suggested taker order:</b> '+d.recommended_order.map((n,i)=>(i+1)+'. '+n).join('   ')+'</div>';
   if(d.filtered_out&&d.filtered_out.length)
     h+='<div class="vid" style="margin-bottom:10px;">Filtered out (not recognised as real footballers): '+d.filtered_out.join(', ')+'</div>';
