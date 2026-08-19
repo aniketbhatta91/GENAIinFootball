@@ -26,7 +26,10 @@ import os
 from continental_strategies import offline_insight, PHILOSOPHIES
 
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
-DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
+# Groq retired the Llama chat models; current chat-capable models include
+# openai/gpt-oss-20b (fast) and openai/gpt-oss-120b (more accurate).
+# Override anytime with the GROQ_MODEL environment variable.
+DEFAULT_GROQ_MODEL = "openai/gpt-oss-20b"
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
 
