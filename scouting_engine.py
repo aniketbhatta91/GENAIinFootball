@@ -103,6 +103,11 @@ STOPWORDS = {"The", "A", "It", "Now", "And", "But", "In", "Min", "From", "To",
              "Spain", "England", "Portugal", "Italy", "Netherlands", "Belgium",
              "Uruguay", "Colombia", "Mexico", "Japan", "Korea", "Morocco",
              "Senegal", "Nigeria", "Ghana", "India", "Australia", "Switzerland",
+             # AFC / Asian nations used as team tags
+             "Uzbekistan", "Bahrain", "Iran", "Iraq", "Jordan", "China", "Vietnam",
+             "Tajikistan", "Syria", "Qatar", "Thailand", "Palestine", "Indonesia",
+             "Saudi", "Arabia", "Emirates", "Arab", "United", "Kuwait", "Oman",
+             "Malaysia", "Singapore", "Lebanon", "Bahraini", "Korea", "South", "North",
              # football terms / phases of play (never player names)
              "Attack", "Attacking", "Defence", "Defense", "Defending", "Midfield",
              "Set", "Piece", "Long", "Short", "Counter", "Cross", "Build", "Press",
@@ -190,7 +195,7 @@ class ScoutingEngine:
         tagged_surnames = set()
         tagged_full = set()
         for m in re.finditer(
-                r"\b([A-ZÀ-Ý][a-zà-ÿ]+(?:\s+[A-ZÀ-Ý][a-zà-ÿ]+){0,2})\s*\(", commentary):
+                r"\b([A-ZÀ-Ý][a-zà-ÿ]+(?:-[a-zà-ÿ]+)?(?:\s+[A-ZÀ-Ý][a-zà-ÿ]+(?:-[a-zà-ÿ]+)?){0,2})\s*\(", commentary):
             nm = m.group(1).strip()
             words = nm.split()
             if words[0] in STOPWORDS or words[-1] in STOPWORDS:
@@ -203,7 +208,7 @@ class ScoutingEngine:
         # auto-detect capitalised names
         counts: Dict[str, List[str]] = {}
         for s in sentences:
-            for nm in re.findall(r"\b([A-ZÀ-Ý][a-zà-ÿ]+(?:\s+[A-ZÀ-Ý][a-zà-ÿ]+)?)\b", s):
+            for nm in re.findall(r"\b([A-ZÀ-Ý][a-zà-ÿ]+(?:-[a-zà-ÿ]+)?(?:\s+[A-ZÀ-Ý][a-zà-ÿ]+(?:-[a-zà-ÿ]+)?)?)\b", s):
                 words = nm.split()
                 if words[0] in STOPWORDS or words[-1] in STOPWORDS:
                     continue

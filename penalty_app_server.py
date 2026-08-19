@@ -29,6 +29,67 @@ import llm_insights
 import match_simulator
 
 BASE = os.path.dirname(os.path.abspath(__file__))
+
+# ─────────────────── penalty-shootout database (afc_penalty.db) ───────────────────
+import sqlite3
+DB_PATH = os.path.join(BASE, "AFC_Penalty_Dataset", "afc_penalty.db")
+
+def db_available():
+    return os.path.exists(DB_PATH)
+
+def db_list_matches():
+    """All matches in the DB that have a stored commentary transcript."""
+    if not db_available():
+        return []
+    try:
+        con = sqlite3.connect(DB_PATH); con.row_factory = sqlite3.Row
+        rows = con.execute(
+            "SELECT match_id, competition, stage, home_team, away_team, match_date, "
+            "shootout_score, winner FROM matches "
+            "WHERE commentary_text IS NOT NULL AND commentary_text != '' "
+            "ORDER BY match_id").fetchall()
+        con.close()
+        return [dict(r) for r in rows]
+    except Exception:
+        return []
+
+def db_commentary_0_120(match_id):
+    """Return the match commentary with the PENALTY SHOOTOUT section stripped, so the
+    model only ever sees 0–120 minutes. The per-taker outcomes stay held-back in the DB."""
+    if not db_available():
+        return ""
+    try:
+        con = sqlite3.connect(DB_PATH); con.row_factory = sqlite3.Row
+        r = con.execute("SELECT commentary_text FROM matches WHERE match_id=?", (match_id,)).fetchone()
+        con.close()
+    except Exception:
+        return ""
+    if not r or not r["commentary_text"]:
+        return ""
+    txt = r["commentary_text"]
+    idx = txt.find("PENALTY SHOOTOUT")
+    if idx != -1:
+        txt = txt[:idx].rstrip() + "\n"
+    return txt
+
+def db_actual_outcomes(match_id):
+    """Held-out ground truth from the DB: {taker: 'scored'|'missed'} (a saved kick counts
+    as missed for the taker). Generic placeholder takers are skipped."""
+    if not db_available():
+        return {}
+    try:
+        con = sqlite3.connect(DB_PATH); con.row_factory = sqlite3.Row
+        rows = con.execute("SELECT taker, scored FROM shootout_kicks WHERE match_id=?", (match_id,)).fetchall()
+        con.close()
+    except Exception:
+        return {}
+    out = {}
+    for r in rows:
+        nm = (r["taker"] or "").strip()
+        if not nm or "taker" in nm.lower() or "kick" in nm.lower():
+            continue
+        out[nm] = "scored" if r["scored"] else "missed"
+    return out
 STATS_PATH = os.path.join(BASE, "player_penalty_stats.csv")
 
 # whitelisted sample files for the "Load sample" buttons
@@ -266,7 +327,7 @@ def commentary_penalty_score(commentary, player):
     return round(score, 1), pen_pos + gen_pos, pen_neg + gen_neg, mental
 
 
-def analyze_penalty(commentary, team=None, video_files=None, engine=None):
+def analyze_penalty(commentary, team=None, video_files=None, engine=None, db_outcomes=None):
     """Build the penalty-taker list ENTIRELY from the entered commentary: each
     player's score reflects how the commentary describes them (positive vs negative
     penalty cues). A known player's real penalty record nudges it slightly, and a
@@ -319,7 +380,20 @@ def analyze_penalty(commentary, team=None, video_files=None, engine=None):
                         "fatigue": "-", "video_used": bool(vk), "known": bool(base),
                         "pos_cues": pos, "neg_cues": neg, "outcome": None})
 
-    outcomes = extract_penalty_outcomes(commentary, [r["player"] for r in results])
+    if db_outcomes:
+        # actual outcomes come from the held-out shootout in the database, NOT the
+        # commentary (which was loaded 0–120 only). Match by full name or surname.
+        surn = {k.split()[-1].lower(): v for k, v in db_outcomes.items()}
+        outcomes = {}
+        for r in results:
+            nm = r["player"]
+            o = db_outcomes.get(nm) or surn.get(nm.split()[-1].lower())
+            if o:
+                outcomes[nm] = o
+        outcome_source = "database"
+    else:
+        outcomes = extract_penalty_outcomes(commentary, [r["player"] for r in results])
+        outcome_source = "commentary"
     for r in results:
         r["outcome"] = outcomes.get(r["player"])
 
@@ -333,6 +407,7 @@ def analyze_penalty(commentary, team=None, video_files=None, engine=None):
         r["history"] = history.get(r["player"])
 
     evaluation = evaluate_penalty_run(results, outcomes)
+    evaluation["source"] = outcome_source
 
     return {"results": results, "video_report": report,
             "recommended_order": [p["player"] for p in results if p["category"] == "RECOMMENDED"],
@@ -460,11 +535,26 @@ def build_scout_engine():
 def analyze():
     commentary = read_commentary()
     team = (request.form.get("team") or "").strip() or None
+    match_id = (request.form.get("match_id") or "").strip()
+    db_outcomes = db_actual_outcomes(match_id) if match_id else None
     if len(commentary) < 20:
         return jsonify({"error": "Please provide at least a few lines of commentary."}), 400
     videos = save_uploaded_videos(request.files.getlist("videos"))
     return jsonify(analyze_penalty(commentary, team=team, video_files=videos,
-                                   engine=build_penalty_engine()))
+                                   engine=build_penalty_engine(), db_outcomes=db_outcomes))
+
+
+@app.route("/db_matches")
+def db_matches():
+    """List matches from afc_penalty.db for the penalty-tab dropdown."""
+    return jsonify({"available": db_available(), "matches": db_list_matches()})
+
+
+@app.route("/db_commentary")
+def db_commentary():
+    """Return a match's 0–120 minute commentary (shootout section stripped)."""
+    mid = (request.args.get("match_id") or "").strip()
+    return jsonify({"commentary": db_commentary_0_120(mid)})
 
 
 @app.route("/scout", methods=["POST"])
@@ -938,20 +1028,16 @@ Optional video signal: OpenCV motion analysis ─▶ composure score</div>
     <div class="grid">
       <div class="card">
         <label>Match commentary</label>
-        <textarea id="p_commentary" placeholder="Paste commentary, or pick a match below..."></textarea>
+        <textarea id="p_commentary" placeholder="Paste commentary, or pick a match below..."
+                  oninput="clearDbMatch()"></textarea>
         <div class="chips" style="align-items:center;gap:8px;">
-          <label style="margin:0;">Load a match transcript:</label>
-          <select id="p_sample" onchange="if(this.value){loadSample(this.value,'p_commentary');}"
-                  style="padding:8px 10px;border-radius:8px;">
+          <label style="margin:0;">Load a match (0–120 min only, from database):</label>
+          <select id="p_sample" onchange="loadDbMatch(this.value)"
+                  style="padding:8px 10px;border-radius:8px;min-width:300px;">
             <option value="">— select a match —</option>
-            <option value="germany_shootout">Germany 3–4 Paraguay 2026 — shootout only</option>
-            <option value="germany_full">Germany 1–1 Paraguay 2026 — full match</option>
-            <option value="croatia_shootout">Croatia 4–2 Brazil 2022 — shootout only</option>
-            <option value="croatia_full">Croatia 1–1 Brazil 2022 — full match</option>
-            <option value="penalty_demo">PSG–Arsenal demo</option>
-            <option value="ileague_commentary">REAL I-League match</option>
           </select>
         </div>
+        <div class="hint" id="p_db_note" style="margin-top:4px;">Only the 0–120 minute commentary is loaded. The penalty shootout is held back in the database and used to check how accurate the prediction was — never shown to the model.</div>
         <label style="margin-top:10px;">…or upload commentary (.txt)</label>
         <input type="file" id="p_commentary_file" accept=".txt"/>
         <label style="margin-top:10px;">…or transcribe a video/audio into this box</label>
@@ -1117,6 +1203,28 @@ async function loadSample(name, targetId){
   try{ const r=await fetch('/sample?name='+name); const d=await r.json();
     if(d.text!==undefined) document.getElementById(targetId).value=d.text; }catch(e){}
 }
+/* ---- penalty-tab: matches from the database (0–120 only, shootout held back) ---- */
+let currentMatchId = "";
+async function loadDbMatches(){
+  const sel=document.getElementById('p_sample'); if(!sel) return;
+  try{
+    const r=await fetch('/db_matches'); const d=await r.json();
+    if(!d.available){ sel.innerHTML='<option value="">(database not found — run afc_penalty.db build)</option>'; return; }
+    let opts='<option value="">— select a match —</option>';
+    (d.matches||[]).forEach(m=>{ opts+=`<option value="${m.match_id}">${m.competition} — ${m.home_team} v ${m.away_team} (${m.stage})</option>`; });
+    sel.innerHTML=opts;
+  }catch(e){ sel.innerHTML='<option value="">(could not load matches)</option>'; }
+}
+async function loadDbMatch(mid){
+  currentMatchId = mid || "";
+  const ta=document.getElementById('p_commentary');
+  if(!mid){ ta.value=''; return; }
+  try{ const r=await fetch('/db_commentary?match_id='+encodeURIComponent(mid)); const d=await r.json();
+    ta.value=d.commentary||''; }catch(e){}
+}
+function clearDbMatch(){ /* manual edit disconnects from the DB match */
+  currentMatchId=""; const s=document.getElementById('p_sample'); if(s) s.value="";
+}
 async function loadMatch(commName, commTarget, rosterName, rosterTarget){
   await loadSample(commName, commTarget);
   await loadSample(rosterName, rosterTarget);
@@ -1233,6 +1341,7 @@ async function runPenalty(){
   const err=document.getElementById('p_err'); err.textContent=''; document.getElementById('p_out').innerHTML='';
   const fd=new FormData();
   fd.append('commentary', document.getElementById('p_commentary').value);
+  if(currentMatchId) fd.append('match_id', currentMatchId);
   const cf=document.getElementById('p_commentary_file').files[0]; if(cf) fd.append('commentary_file', cf);
   for(const v of document.getElementById('p_videos').files) fd.append('videos', v);
   penaltySettings(fd);
@@ -1249,18 +1358,19 @@ async function runPenalty(){
   h+='</tbody></table>'+(d.history_active?'<div class="hint" style="margin-top:6px;">Penalty history is retrieved from the LLM (Groq/OpenAI) from its general knowledge — it is not in this match\'s commentary, and may be approximate.</div>':'')+videoBlock(d.video_report)+'</div>';
   // accuracy evaluation vs actual outcomes from the commentary
   const ev=d.evaluation;
+  const src=(ev&&ev.source==='database')?'the database (actual shootout, held back from the model)':'the commentary';
   if(ev && ev.n_with_outcome>0){
     h+='<div class="teambox" style="margin-top:14px;">';
     if(ev.accuracy!==null){
-      h+='<b>Output accuracy: '+ev.accuracy+'%</b> — the app ranked the actual penalty scorers above the players who missed in '+ev.correct+' of '+ev.pairs+' comparisons.<br>';
+      h+='<b>Prediction accuracy: '+ev.accuracy+'%</b> — from the 0–120 min commentary alone, the app ranked the players who actually scored their penalty above those who missed in '+ev.correct+' of '+ev.pairs+' comparisons. Ground truth: '+src+'.<br>';
     } else {
-      h+='<b>Outcome check.</b><br>';
+      h+='<b>Outcome check</b> (ground truth: '+src+').<br>';
     }
-    if(ev.scorers.length) h+='✅ Scored (from commentary): '+ev.scorers.join(', ')+'<br>';
-    if(ev.missers.length) h+='❌ Missed (from commentary): '+ev.missers.join(', ');
+    if(ev.scorers.length) h+='✅ Actually scored: '+ev.scorers.join(', ')+'<br>';
+    if(ev.missers.length) h+='❌ Actually missed/saved: '+ev.missers.join(', ');
     h+='</div>';
   } else {
-    h+='<div class="vid" style="margin-top:10px;">No penalty scored/missed outcomes were found in the commentary to evaluate accuracy against. Add lines like "X scored the penalty" / "Y\'s penalty was saved" to enable scoring.</div>';
+    h+='<div class="vid" style="margin-top:10px;">No held-back outcomes were available to score accuracy. Pick a match from the database dropdown (its shootout result is stored separately), or add explicit shootout lines to the commentary.</div>';
   }
   document.getElementById('p_out').innerHTML=h;
 }
@@ -1482,6 +1592,8 @@ async function annotatePlayers(containerId){
     });
   }catch(e){}
 }
+/* populate the penalty-tab match dropdown from the database on load */
+loadDbMatches();
 </script>
 </body>
 </html>
