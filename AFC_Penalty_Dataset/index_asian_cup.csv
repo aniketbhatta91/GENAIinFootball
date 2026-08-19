@@ -1,0 +1,17 @@
+match_id,competition,stage,date,home,away,score_reg_ET,extra_time,shootout,winner,shootout_kicks,transcript_file,commentary_type
+AC2004_QF_BAH_UZB,AFC Asian Cup 2004,Quarter-final,30 July 2004,Bahrain,Uzbekistan,2-2,Yes,4-3,Bahrain,10,AC2004_QF_BAH_UZB.txt,Reconstructed
+AC2004_QF_JPN_JOR,AFC Asian Cup 2004,Quarter-final,31 July 2004,Japan,Jordan,1-1,Yes,4-3 (sudden death),Japan,14,AC2004_QF_JPN_JOR.txt,Reconstructed
+AC2004_SF_CHN_IRN,AFC Asian Cup 2004,Semi-final,3 August 2004,China PR,Iran,1-1,Yes,4-3,China PR,10,AC2004_SF_CHN_IRN.txt,Reconstructed
+AC2007_QF_JPN_AUS,AFC Asian Cup 2007,Quarter-final,21 July 2007,Japan,Australia,1-1,Yes,4-3,Japan,10,AC2007_QF_JPN_AUS.txt,Reconstructed
+AC2007_QF_KOR_IRN,AFC Asian Cup 2007,Quarter-final,22 July 2007,South Korea,Iran,0-0,Yes,4-2,South Korea,9,AC2007_QF_KOR_IRN.txt,Reconstructed
+AC2007_SF_IRQ_KOR,AFC Asian Cup 2007,Semi-final,25 July 2007,Iraq,South Korea,0-0,Yes,4-3,Iraq,9,AC2007_SF_IRQ_KOR.txt,Reconstructed
+AC2007_3RD_KOR_JPN,AFC Asian Cup 2007,Third-place play-off,28 July 2007,South Korea,Japan,0-0,Yes,6-5 (sudden death),South Korea,12,AC2007_3RD_KOR_JPN.txt,Reconstructed
+AC2011_SF_JPN_KOR,AFC Asian Cup 2011,Semi-final,25 January 2011,Japan,South Korea,2-2,Yes,3-0,Japan,7,AC2011_SF_JPN_KOR.txt,Reconstructed
+AC2015_QF_IRQ_IRN,AFC Asian Cup 2015,Quarter-final,23 January 2015,Iraq,Iran,3-3,Yes,7-6 (sudden death),Iraq,16,AC2015_QF_IRQ_IRN.txt,Reconstructed
+AC2015_QF_UAE_JPN,AFC Asian Cup 2015,Quarter-final,23 January 2015,United Arab Emirates,Japan,1-1,Yes,5-4,United Arab Emirates,12,AC2015_QF_UAE_JPN.txt,Reconstructed
+AC2019_R16_VIE_JOR,AFC Asian Cup 2019,Round of 16,20 January 2019,Vietnam,Jordan,1-1,Yes,4-2,Vietnam,9,AC2019_R16_VIE_JOR.txt,Reconstructed
+AC2019_R16_AUS_UZB,AFC Asian Cup 2019,Round of 16,21 January 2019,Australia,Uzbekistan,0-0,Yes,4-2,Australia,9,AC2019_R16_AUS_UZB.txt,Reconstructed
+AC2023_R16_TJK_UAE,AFC Asian Cup 2023,Round of 16,28 January 2024,Tajikistan,United Arab Emirates,1-1,Yes,5-3,Tajikistan,9,AC2023_R16_TJK_UAE.txt,Reconstructed
+AC2023_R16_KOR_KSA,AFC Asian Cup 2023,Round of 16,30 January 2024,Saudi Arabia,South Korea,1-1,Yes,2-4,South Korea,8,AC2023_R16_KOR_KSA.txt,Reconstructed
+AC2023_R16_IRN_SYR,AFC Asian Cup 2023,Round of 16,31 January 2024,Iran,Syria,1-1,Yes,5-3,Iran,9,AC2023_R16_IRN_SYR.txt,Reconstructed
+AC2023_QF_QAT_UZB,AFC Asian Cup 2023,Quarter-final,3 February 2024,Qatar,Uzbekistan,1-1,Yes,3-2,Qatar,6,AC2023_QF_QAT_UZB.txt,Reconstructed
