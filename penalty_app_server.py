@@ -32,34 +32,66 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 
 # ─────────────────── penalty-shootout database (afc_penalty.db) ───────────────────
 import sqlite3
-DB_PATH = os.path.join(BASE, "AFC_Penalty_Dataset", "afc_penalty.db")
+
+def db_path():
+    """Locate afc_penalty.db wherever it lives. Checks (in order): the AFC_DB_PATH
+    env var, the AFC_Penalty_Dataset subfolder, the app folder, its parent, and a few
+    common D:-drive spots — so the DB can be moved anywhere on D and still be found."""
+    candidates = [
+        os.environ.get("AFC_DB_PATH"),
+        os.path.join(BASE, "AFC_Penalty_Dataset", "afc_penalty.db"),
+        os.path.join(BASE, "afc_penalty.db"),
+        os.path.join(os.path.dirname(BASE), "afc_penalty.db"),
+        os.path.join(os.path.dirname(BASE), "AFC_Penalty_Dataset", "afc_penalty.db"),
+        r"D:\afc_penalty.db",
+        r"D:\AFC_Penalty_Dataset\afc_penalty.db",
+        r"D:\GenAI in Football\afc_penalty.db",
+    ]
+    for c in candidates:
+        if c and os.path.exists(c):
+            return c
+    # default (may not exist yet)
+    return os.path.join(BASE, "AFC_Penalty_Dataset", "afc_penalty.db")
+
+# kept for any references; resolves dynamically
+DB_PATH = db_path()
 
 def db_available():
-    return os.path.exists(DB_PATH)
+    return os.path.exists(db_path()) or bool(EMBEDDED_MATCHES)
 
 def db_list_matches():
-    """All matches in the DB that have a stored commentary transcript."""
-    if not db_available():
-        return []
-    try:
-        con = sqlite3.connect(DB_PATH); con.row_factory = sqlite3.Row
-        rows = con.execute(
-            "SELECT match_id, competition, stage, home_team, away_team, match_date, "
-            "shootout_score, winner FROM matches "
-            "WHERE commentary_text IS NOT NULL AND commentary_text != '' "
-            "ORDER BY match_id").fetchall()
-        con.close()
-        return [dict(r) for r in rows]
-    except Exception:
-        return []
+    """Matches with a stored/generated transcript: DB rows + embedded matches."""
+    result = []
+    if os.path.exists(db_path()):
+        try:
+            con = sqlite3.connect(db_path()); con.row_factory = sqlite3.Row
+            rows = con.execute(
+                "SELECT match_id, competition, stage, home_team, away_team, match_date, "
+                "shootout_score, winner FROM matches "
+                "WHERE commentary_text IS NOT NULL AND commentary_text != '' "
+                "ORDER BY match_id").fetchall()
+            con.close()
+            result = [dict(r) for r in rows]
+        except Exception:
+            result = []
+    have = {r["match_id"] for r in result}
+    for m in EMBEDDED_MATCHES:
+        if m["match_id"] not in have:
+            result.append({"match_id": m["match_id"], "competition": m["competition"],
+                           "stage": m["stage"], "home_team": m["home"], "away_team": m["away"],
+                           "match_date": m["date"], "shootout_score": m["so"], "winner": m["winner"]})
+    return result
 
 def db_commentary_0_120(match_id):
     """Return the match commentary with the PENALTY SHOOTOUT section stripped, so the
-    model only ever sees 0–120 minutes. The per-taker outcomes stay held-back in the DB."""
-    if not db_available():
+    model only ever sees 0–120 minutes. The per-taker outcomes stay held-back."""
+    emb = _embedded_by_id().get(match_id)
+    if emb:
+        return _embedded_commentary(emb)
+    if not os.path.exists(db_path()):
         return ""
     try:
-        con = sqlite3.connect(DB_PATH); con.row_factory = sqlite3.Row
+        con = sqlite3.connect(db_path()); con.row_factory = sqlite3.Row
         r = con.execute("SELECT commentary_text FROM matches WHERE match_id=?", (match_id,)).fetchone()
         con.close()
     except Exception:
@@ -73,12 +105,21 @@ def db_commentary_0_120(match_id):
     return txt
 
 def db_actual_outcomes(match_id):
-    """Held-out ground truth from the DB: {taker: 'scored'|'missed'} (a saved kick counts
-    as missed for the taker). Generic placeholder takers are skipped."""
-    if not db_available():
+    """Held-out ground truth: {taker: 'scored'|'missed'} (a saved kick counts as missed).
+    Works for both embedded matches and DB matches; generic placeholder takers are skipped."""
+    emb = _embedded_by_id().get(match_id)
+    if emb:
+        out = {}
+        for _t, tk, res in emb["shoot"]:
+            nm = (tk or "").strip()
+            if not nm or "taker" in nm.lower() or "kick" in nm.lower():
+                continue
+            out[nm] = "scored" if res == "scored" else "missed"
+        return out
+    if not os.path.exists(db_path()):
         return {}
     try:
-        con = sqlite3.connect(DB_PATH); con.row_factory = sqlite3.Row
+        con = sqlite3.connect(db_path()); con.row_factory = sqlite3.Row
         rows = con.execute("SELECT taker, scored FROM shootout_kicks WHERE match_id=?", (match_id,)).fetchall()
         con.close()
     except Exception:
@@ -90,6 +131,150 @@ def db_actual_outcomes(match_id):
             continue
         out[nm] = "scored" if r["scored"] else "missed"
     return out
+
+# ─── extra matches embedded in the app (no sandbox / DB write needed) ───
+# Verified facts: teams, score, goals, and the real shoot-out kick-by-kick.
+# The 0–120 commentary is generated on the fly and clearly reconstructed.
+EMBEDDED_MATCHES = [
+    dict(match_id="WC2022_F_ARG_FRA", competition="FIFA World Cup 2022", stage="Final",
+         date="18 December 2022", venue="Lusail Stadium, Lusail, Qatar",
+         home="Argentina", away="France", ft="3-3", so="4-2", winner="Argentina",
+         gk_home="Emiliano Martínez (Argentina)", gk_away="Hugo Lloris (France)",
+         goals=[(23,"Argentina","Lionel Messi","penalty"),(36,"Argentina","Ángel Di María","counter-attack finish"),
+                (80,"France","Kylian Mbappé","penalty"),(81,"France","Kylian Mbappé","volley"),
+                (108,"Argentina","Lionel Messi","close-range finish"),(118,"France","Kylian Mbappé","penalty, hat-trick")],
+         shoot=[("France","Mbappé","scored"),("Argentina","Messi","scored"),
+                ("France","Coman","saved"),("Argentina","Dybala","scored"),
+                ("France","Tchouaméni","missed"),("Argentina","Paredes","scored"),
+                ("France","Kolo Muani","scored"),("Argentina","Montiel","scored")]),
+    dict(match_id="WC2006_F_ITA_FRA", competition="FIFA World Cup 2006", stage="Final",
+         date="9 July 2006", venue="Olympiastadion, Berlin, Germany",
+         home="Italy", away="France", ft="1-1", so="5-3", winner="Italy",
+         gk_home="Gianluigi Buffon (Italy)", gk_away="Fabien Barthez (France)",
+         goals=[(7,"France","Zinedine Zidane","penalty"),(19,"Italy","Marco Materazzi","header from a corner")],
+         note_extra="Zinedine Zidane was sent off in extra time (headbutt).",
+         shoot=[("Italy","Pirlo","scored"),("France","Wiltord","scored"),
+                ("Italy","Materazzi","scored"),("France","Trézéguet","missed"),
+                ("Italy","De Rossi","scored"),("France","Abidal","scored"),
+                ("Italy","Del Piero","scored"),("France","Sagnol","scored"),
+                ("Italy","Grosso","scored")]),
+    dict(match_id="UCL2005_F_LIV_MIL", competition="UEFA Champions League 2005", stage="Final",
+         date="25 May 2005", venue="Atatürk Olympic Stadium, Istanbul, Turkey",
+         home="Liverpool", away="AC Milan", ft="3-3", so="3-2", winner="Liverpool",
+         gk_home="Jerzy Dudek (Liverpool)", gk_away="Dida (AC Milan)",
+         goals=[(1,"AC Milan","Paolo Maldini","volley"),(39,"AC Milan","Hernán Crespo","finish"),
+                (44,"AC Milan","Hernán Crespo","finish"),(54,"Liverpool","Steven Gerrard","header"),
+                (56,"Liverpool","Vladimír Šmicer","long-range strike"),(60,"Liverpool","Xabi Alonso","rebound")],
+         shoot=[("AC Milan","Serginho","missed"),("Liverpool","Hamann","scored"),
+                ("AC Milan","Pirlo","saved"),("Liverpool","Cissé","scored"),
+                ("AC Milan","Tomasson","scored"),("Liverpool","Riise","saved"),
+                ("AC Milan","Kaká","scored"),("Liverpool","Šmicer","scored"),
+                ("AC Milan","Shevchenko","saved")]),
+    dict(match_id="UCL2008_F_MUN_CHE", competition="UEFA Champions League 2008", stage="Final",
+         date="21 May 2008", venue="Luzhniki Stadium, Moscow, Russia",
+         home="Manchester United", away="Chelsea", ft="1-1", so="6-5", winner="Manchester United",
+         gk_home="Edwin van der Sar (Manchester United)", gk_away="Petr Čech (Chelsea)",
+         goals=[(26,"Manchester United","Cristiano Ronaldo","header"),(45,"Chelsea","Frank Lampard","finish")],
+         shoot=[("Manchester United","Tevez","scored"),("Chelsea","Ballack","scored"),
+                ("Manchester United","Carrick","scored"),("Chelsea","Belletti","scored"),
+                ("Manchester United","Ronaldo","saved"),("Chelsea","Lampard","scored"),
+                ("Manchester United","Hargreaves","scored"),("Chelsea","Cole","scored"),
+                ("Manchester United","Nani","scored"),("Chelsea","Terry","missed"),
+                ("Manchester United","Anderson","scored"),("Chelsea","Kalou","scored"),
+                ("Manchester United","Giggs","scored"),("Chelsea","Anelka","saved")]),
+    dict(match_id="UCL2012_F_BAY_CHE", competition="UEFA Champions League 2012", stage="Final",
+         date="19 May 2012", venue="Allianz Arena, Munich, Germany",
+         home="Bayern Munich", away="Chelsea", ft="1-1", so="3-4", winner="Chelsea",
+         gk_home="Manuel Neuer (Bayern Munich)", gk_away="Petr Čech (Chelsea)",
+         goals=[(83,"Bayern Munich","Thomas Müller","header"),(88,"Chelsea","Didier Drogba","header from a corner")],
+         shoot=[("Bayern Munich","Lahm","scored"),("Chelsea","Mata","saved"),
+                ("Bayern Munich","Gómez","scored"),("Chelsea","Luiz","scored"),
+                ("Bayern Munich","Neuer","scored"),("Chelsea","Lampard","scored"),
+                ("Bayern Munich","Olić","saved"),("Chelsea","Cole","scored"),
+                ("Bayern Munich","Schweinsteiger","saved"),("Chelsea","Drogba","scored")]),
+    dict(match_id="UCL2016_F_RMA_ATM", competition="UEFA Champions League 2016", stage="Final",
+         date="28 May 2016", venue="San Siro, Milan, Italy",
+         home="Real Madrid", away="Atlético Madrid", ft="1-1", so="5-3", winner="Real Madrid",
+         gk_home="Keylor Navas (Real Madrid)", gk_away="Jan Oblak (Atlético Madrid)",
+         goals=[(15,"Real Madrid","Sergio Ramos","finish"),(79,"Atlético Madrid","Yannick Carrasco","close-range finish")],
+         shoot=[("Real Madrid","Vázquez","scored"),("Atlético Madrid","Griezmann","scored"),
+                ("Real Madrid","Marcelo","scored"),("Atlético Madrid","Gabi","scored"),
+                ("Real Madrid","Bale","scored"),("Atlético Madrid","Saúl","scored"),
+                ("Real Madrid","Ramos","scored"),("Atlético Madrid","Juanfran","missed"),
+                ("Real Madrid","Ronaldo","scored")]),
+]
+
+def _embedded_by_id():
+    return {m["match_id"]: m for m in EMBEDDED_MATCHES}
+
+_EMB_ATT = ["{p} drives forward and forces a fine save from {gk2}.",
+ "{p} shows real composure to control on the turn and shoot just wide.",
+ "{p} stays calm under pressure and threads a clever pass through the lines.",
+ "{p} curls an effort narrowly over the bar from 20 yards.",
+ "{p} beats his man with a confident touch and wins a corner.",
+ "{p} looks assured on the ball, dictating the tempo for {team}.",
+ "{p} strikes cleanly and {gk2} has to tip it over — excellent technique.",
+ "{p} stands over a free kick and bends it inches wide — dead-ball composure on show."]
+_EMB_NEU = ["{p} wins a header in midfield and sets {team} away.",
+ "{p} tracks back well to break up the attack.",
+ "{p} makes a strong, clean tackle to regain possession.",
+ "{p} is fouled just outside the area and wins a free kick.",
+ "{p} keeps possession under pressure near the touchline."]
+_EMB_NEG = ["{p} looks nervous there, giving the ball away under pressure.",
+ "{p} snatches at the chance and skies it over — a let-off.",
+ "{p} hesitates on the ball and the moment is gone.",
+ "{p} is booked for a mistimed challenge."]
+
+def _embedded_commentary(m):
+    """Generate a dense, clearly-labelled 0–120 transcript (no shootout section)."""
+    import random as _r
+    rng = _r.Random(hash(m["match_id"]) & 0xffffffff)
+    a, b = m["home"], m["away"]
+    def short(gk):
+        nm = gk.split("(")[0].strip(); return nm.split()[-1] if nm else nm
+    def pool(team):
+        names = []
+        for t, tk, _ in m["shoot"]:
+            if t == team and tk and "taker" not in tk.lower():
+                if tk not in names: names.append(tk)
+        for g in m.get("goals", []):
+            if g[1] == team and g[2] and g[2] not in names: names.append(g[2])
+        return names, (short(m["gk_home"]) if team == a else short(m["gk_away"]))
+    pa, gka = pool(a); pb, gkb = pool(b)
+    L = []
+    L.append(f"{m['competition']} — {m['stage']}"); L.append(f"{a} vs {b}")
+    L.append(f"{m['venue']} · {m['date']}")
+    L.append(f"{a} {m['ft']} {b} — {m['winner']} win {m['so']} on penalties (shootout held back)")
+    L.append("=" * 82)
+    L.append("RECONSTRUCTED COMMENTARY (0–120 MIN) — FOR MODEL TESTING, NOT AN AUTHENTIC RECORD.")
+    L.append("Real: teams, score, goals, and the shootout outcome (stored separately for accuracy).")
+    L.append("The minute-by-minute open play is AI-reconstructed; real players are named illustratively.")
+    if m.get("note_extra"): L.append("Note: " + m["note_extra"])
+    L.append("=" * 82); L.append("")
+    goals = sorted(m.get("goals", []), key=lambda g: g[0])
+    gi = 0
+    L.append(f"[0'] Kick-off. {a} get us under way against {b}.")
+    for mn in range(2, 121, 2):
+        while gi < len(goals) and goals[gi][0] <= mn:
+            _, tm, sc, note = goals[gi]
+            L.append(f"[{goals[gi][0]}'] GOAL — {sc} ({tm}): {note}.")
+            gi += 1
+        team = a if (mn // 2) % 2 == 0 else b
+        p_pool, gk = (pa, gka) if team == a else (pb, gkb)
+        gk2 = gkb if team == a else gka
+        r = rng.random()
+        if p_pool:
+            p = rng.choice(p_pool)
+            tmpl = rng.choice(_EMB_ATT) if r < 0.5 else rng.choice(_EMB_NEU) if r < 0.8 else rng.choice(_EMB_NEG)
+            L.append(f"[{mn}'] " + tmpl.format(p=p, team=team, gk2=gk2 or "the keeper"))
+        if mn == 44: L.append("[HT] Half-time.")
+        if mn == 90: L.append("[FT] Full time in normal play — level, so we go to extra time.")
+    while gi < len(goals):
+        _, tm, sc, note = goals[gi]; L.append(f"[{goals[gi][0]}'] GOAL — {sc} ({tm}): {note}."); gi += 1
+    L.append("[AET] End of extra time. It goes to a penalty shootout.")
+    L.append("")
+    return "\n".join(L)
+
 STATS_PATH = os.path.join(BASE, "player_penalty_stats.csv")
 
 # whitelisted sample files for the "Load sample" buttons
